@@ -22,7 +22,7 @@ typedef unsigned int _Err;
 
 #define ERR(cond, err, ret)		\
 	if(cond) {					\
-		regerr(err, __LINE__);	\
+		regerr(err, __FILE__, __LINE__);	\
 		return ret;				\
 	}
 
@@ -33,7 +33,7 @@ typedef unsigned int _Err;
  \param	code		Error code.
  \param	nline		Line number where the error occurred.
 **********************************************************/
-void regerr(_Err code, size_t nline);
+void regerr(_Err code, std::string file, size_t nline);
 
 /*********************************************************
  \brief	Print the current error mensage.

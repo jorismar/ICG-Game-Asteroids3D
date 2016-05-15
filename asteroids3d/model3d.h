@@ -25,13 +25,8 @@ class Model3D {
 		// Images / Texture
 		GLuint*			 textureIds;
 		std::map<std::string, GLuint*> textureIdMap;	// map image filenames to textureIds
-
 		std::string		obj_path;
-		std::string		error_msg;
-
 		double			ar_scale[3];
-		double			ar_rotate[4];
-		double			ar_translate[3];
 
 		void Color4f(const aiColor4D *color);
 		void set_float4(float f[4], float a, float b, float c, float d);
@@ -66,12 +61,6 @@ class Model3D {
 		void render();
 
 		void scale(double x, double y, double z);
-
-		void rotate(double angle, double x, double y, double z);
-
-		void translate(double dx, double dy, double dz);
-
-		std::string& getErrorString();
 };
 
 #endif // !JB_MODEL3D_H

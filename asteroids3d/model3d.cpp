@@ -7,15 +7,6 @@ Model3D::Model3D() {
 	this->ar_scale[0] = 1.0;
 	this->ar_scale[1] = 1.0;
 	this->ar_scale[2] = 1.0;
-
-	this->ar_rotate[0] = 0.0;
-	this->ar_rotate[1] = 0.0;
-	this->ar_rotate[2] = 0.0;
-	this->ar_rotate[3] = 0.0;
-
-	this->ar_translate[0] = 0.0;
-	this->ar_translate[1] = 0.0;
-	this->ar_translate[2] = 0.0;
 }
 
 Model3D::~Model3D() {
@@ -33,9 +24,10 @@ bool Model3D::importFrmFile(const std::string& path) {
 
 	this->scene = this->importer.ReadFile(this->obj_path, aiProcessPreset_TargetRealtime_Quality);
 
-	this->error_msg = this->importer.GetErrorString();
-
-	ERR(!this->scene, ASSIMP_IMPORTER_ERROR, false);	// Check and Capture Error
+	if (!this->scene) {
+		std::cout << this->importer.GetErrorString() << std::endl;
+		ERR(true, ASSIMP_IMPORTER_ERROR, false);	// Check and Capture Error
+	}
 
 	return true;
 }
@@ -80,27 +72,32 @@ int Model3D::loadTexture() {
 
 	for (unsigned int i = 0; i < numTextures; i++) {
 		std::string filename = (*itr).first;	// get filename
-		(*itr).second = &textureIds[i];			// save texture id for filename in map
+		(*itr).second = &this->textureIds[i];	// save texture id for filename in map
 		itr++;									// next texture
 
-		ilBindImage(imageIds[i]);					// Binding of DevIL image name
+		ilBindImage(imageIds[i]);				// Binding of DevIL image name
 		std::string path = basepath + filename;	
 
-		ERR(!ilLoadImage((ILstring) path.c_str()), IL_LOAD_IMG_FAIL, -3);
+		success = ilLoadImage((ILstring)path.c_str());
+
+		if (!success) {
+			std::cout << "Failed to read the " + path << std::endl;
+			ERR(true, IL_LOAD_IMG_FAIL, -3);
+		}
 
 		// Convert every colour component into unsigned byte.If your image contains 
 		// alpha channel you can replace IL_RGB with IL_RGBA
 		ERR(!ilConvertImage(IL_RGB, IL_UNSIGNED_BYTE), IL_CONVERT_IMG_FAIL, -4);
 		
-		glBindTexture(GL_TEXTURE_2D, textureIds[i]);	// Binding of texture name
-
+		glBindTexture(GL_TEXTURE_2D, this->textureIds[i]);	// Binding of texture name
+		
 		// redefine standard texture values
 		// We will use linear interpolation for magnification filter
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 		// We will use linear interpolation for minifying filter
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
+		
 		// Texture specification
 		glTexImage2D(GL_TEXTURE_2D, 0, ilGetInteger(IL_IMAGE_BPP), ilGetInteger(IL_IMAGE_WIDTH),
 			ilGetInteger(IL_IMAGE_HEIGHT), 0, ilGetInteger(IL_IMAGE_FORMAT), GL_UNSIGNED_BYTE,
@@ -111,8 +108,6 @@ int Model3D::loadTexture() {
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 		glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
 		glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
-		
-		this->error_msg = "Couldn't load Image: " + path;
 	}
 
 	ilDeleteImages(numTextures, imageIds);		// release memory used by image.
@@ -132,23 +127,6 @@ void Model3D::scale(double x, double y, double z) {
 	this->ar_scale[0] = x;
 	this->ar_scale[1] = y;
 	this->ar_scale[2] = z;
-}
-
-void Model3D::rotate(double angle, double x, double y, double z) {
-	this->ar_rotate[0] = x;
-	this->ar_rotate[1] = y;
-	this->ar_rotate[2] = z;
-	this->ar_rotate[3] = angle;
-}
-
-void Model3D::translate(double dx, double dy, double dz) {
-	this->ar_translate[0] = dx;
-	this->ar_translate[1] = dy;
-	this->ar_translate[2] = dz;
-}
-
-std::string& Model3D::getErrorString() {
-	return this->error_msg;
 }
 
 //************************************************ PRIVATE FUNCTIONS ************************************************
@@ -198,25 +176,34 @@ void Model3D::apply_material(const aiMaterial *mtl)
 		unsigned int texId = *textureIdMap[texPath.data];
 		glBindTexture(GL_TEXTURE_2D, texId);
 	}
+	else std::cout << "GetTexture fail" << std::endl;
 
 	this->set_float4(c, 0.8f, 0.8f, 0.8f, 1.0f);
 	if (AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_DIFFUSE, &diffuse))
 		this->color4_to_float4(&diffuse, c);
+	else std::cout << "aiGetMaterialColor1 fail" << std::endl;
+
 	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, c);
 
 	this->set_float4(c, 0.0f, 0.0f, 0.0f, 1.0f);
 	if (AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_SPECULAR, &specular))
 		this->color4_to_float4(&specular, c);
+	else std::cout << "aiGetMaterialColor2 fail" << std::endl;
+
 	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, c);
 
 	this->set_float4(c, 0.2f, 0.2f, 0.2f, 1.0f);
 	if (AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_AMBIENT, &ambient))
 		this->color4_to_float4(&ambient, c);
+	else std::cout << "aiGetMaterialColor3 fail" << std::endl;
+
 	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, c);
 
 	this->set_float4(c, 0.0f, 0.0f, 0.0f, 1.0f);
 	if (AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_EMISSIVE, &emission))
 		this->color4_to_float4(&emission, c);
+	else std::cout << "aiGetMaterialColor4 fail" << std::endl;
+
 	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, c);
 
 	max = 1;
@@ -252,8 +239,6 @@ void Model3D::recursive_render(const struct aiScene *sc, const struct aiNode* nd
 	aiMatrix4x4 matrix2;
 
 	aiMatrix4x4::Scaling(aiVector3D(this->ar_scale[0], this->ar_scale[1], this->ar_scale[2]), matrix2);
-	aiMatrix4x4::Rotation(this->ar_rotate[3], aiVector3D(this->ar_rotate[0], this->ar_rotate[1], this->ar_rotate[2]), matrix2);
-	aiMatrix4x4::Translation(aiVector3D(this->ar_translate[0], this->ar_translate[1], this->ar_translate[2]), matrix2);
 
 	matrix1 = matrix1 * matrix2;
 
@@ -264,7 +249,7 @@ void Model3D::recursive_render(const struct aiScene *sc, const struct aiNode* nd
 	glMultMatrixf((float*) &matrix1);
 
 	// draw all meshes assigned to this node
-	for (; n < nd->mNumMeshes; n++) {
+	for (n = 0; n < nd->mNumMeshes; n++) {
 		const struct aiMesh* mesh = this->scene->mMeshes[nd->mMeshes[n]];
 
 		apply_material(sc->mMaterials[mesh->mMaterialIndex]);
@@ -284,18 +269,18 @@ void Model3D::recursive_render(const struct aiScene *sc, const struct aiNode* nd
 			GLenum face_mode;
 
 			switch (face->mNumIndices) {
-			case 1:
-				face_mode = GL_POINTS;
-				break;
-			case 2:
-				face_mode = GL_LINES;
-				break;
-			case 3:
-				face_mode = GL_TRIANGLES;
-				break;
-			default:
-				face_mode = GL_POLYGON;
-				break;
+				case 1:
+					face_mode = GL_POINTS;
+					break;
+				case 2:
+					face_mode = GL_LINES;
+					break;
+				case 3:
+					face_mode = GL_TRIANGLES;
+					break;
+				default:
+					face_mode = GL_POLYGON;
+					break;
 			}
 
 			glBegin(face_mode);
@@ -305,8 +290,12 @@ void Model3D::recursive_render(const struct aiScene *sc, const struct aiNode* nd
 					if (mesh->mColors[0] != NULL)
 						this->Color4f(&mesh->mColors[0][vertexIndex]);
 
-					if (mesh->mNormals != NULL && mesh->HasTextureCoords(0))	//HasTextureCoords(texture_coordinates_set)
-						glTexCoord2f(mesh->mTextureCoords[0][vertexIndex].x, 1 - mesh->mTextureCoords[0][vertexIndex].y); //mTextureCoords[channel][vertex]
+					if (mesh->mNormals != NULL)
+
+						if (mesh->HasTextureCoords(0))		//HasTextureCoords(texture_coordinates_set)
+						{
+							glTexCoord2f(mesh->mTextureCoords[0][vertexIndex].x, 1 - mesh->mTextureCoords[0][vertexIndex].y); //mTextureCoords[channel][vertex]
+						}
 
 					glNormal3fv(&mesh->mNormals[vertexIndex].x);
 					glVertex3fv(&mesh->mVertices[vertexIndex].x);
