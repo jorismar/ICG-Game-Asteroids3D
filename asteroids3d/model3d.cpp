@@ -82,7 +82,9 @@ int Model3D::loadTexture() {
 
 		if (!success) {
 			std::cout << "Failed to read the " + path << std::endl;
-			ERR(true, IL_LOAD_IMG_FAIL, -3);
+			return TRUE;
+			//return -3;
+			//ERR(true, IL_LOAD_IMG_FAIL, -3);
 		}
 
 		// Convert every colour component into unsigned byte.If your image contains 
@@ -176,33 +178,28 @@ void Model3D::apply_material(const aiMaterial *mtl)
 		unsigned int texId = *textureIdMap[texPath.data];
 		glBindTexture(GL_TEXTURE_2D, texId);
 	}
-	else std::cout << "GetTexture fail" << std::endl;
 
 	this->set_float4(c, 0.8f, 0.8f, 0.8f, 1.0f);
 	if (AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_DIFFUSE, &diffuse))
 		this->color4_to_float4(&diffuse, c);
-	else std::cout << "aiGetMaterialColor1 fail" << std::endl;
 
 	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, c);
 
 	this->set_float4(c, 0.0f, 0.0f, 0.0f, 1.0f);
 	if (AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_SPECULAR, &specular))
 		this->color4_to_float4(&specular, c);
-	else std::cout << "aiGetMaterialColor2 fail" << std::endl;
 
 	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, c);
 
 	this->set_float4(c, 0.2f, 0.2f, 0.2f, 1.0f);
 	if (AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_AMBIENT, &ambient))
 		this->color4_to_float4(&ambient, c);
-	else std::cout << "aiGetMaterialColor3 fail" << std::endl;
 
 	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, c);
 
 	this->set_float4(c, 0.0f, 0.0f, 0.0f, 1.0f);
 	if (AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_EMISSIVE, &emission))
 		this->color4_to_float4(&emission, c);
-	else std::cout << "aiGetMaterialColor4 fail" << std::endl;
 
 	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, c);
 
@@ -253,7 +250,7 @@ void Model3D::recursive_render(const struct aiScene *sc, const struct aiNode* nd
 		const struct aiMesh* mesh = this->scene->mMeshes[nd->mMeshes[n]];
 
 		apply_material(sc->mMaterials[mesh->mMaterialIndex]);
-
+		/*
 		if (mesh->mNormals == NULL)
 			glDisable(GL_LIGHTING);
 		else
@@ -263,7 +260,7 @@ void Model3D::recursive_render(const struct aiScene *sc, const struct aiNode* nd
 			glEnable(GL_COLOR_MATERIAL);
 		else
 			glDisable(GL_COLOR_MATERIAL);
-
+		*/
 		for (t = 0; t < mesh->mNumFaces; t++) {
 			const struct aiFace* face = &mesh->mFaces[t];
 			GLenum face_mode;

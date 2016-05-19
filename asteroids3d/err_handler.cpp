@@ -26,7 +26,7 @@ void printErr(const std::string msg) {
 	else if (err_code == IL_WRONG_VERSION) str_err = "Wrong DevIL version. Old devil.dll in system32/SysWow64?";
 	else if (err_code == IL_CONVERT_IMG_FAIL) str_err = "Couldn't convert image.";
 	else if (err_code == IL_LOAD_IMG_FAIL) str_err = "Couldn't load texture image.";
-	else if (err_code == ASSIMP_IMPORTER_ERROR) str_err = "";
+	else if (err_code == ASSIMP_IMPORTER_ERROR) str_err = "Importer error.";
 	else if (err_code == ASSIMP_NOT_HAS_TEXTURE) str_err = "Support for meshes with embedded textures is not implemented.";
 	//	else if (err_code == ) str_err = ;
 	else return;

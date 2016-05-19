@@ -11,8 +11,8 @@
 
 Model3D * model = new Model3D();
 
-GLfloat LightAmbient[] = { 0.5f, 0.5f, 0.5f, 1.0f };
-GLfloat LightDiffuse[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+GLfloat LightAmbient[] = { 0.5f, 0.5f, 0.5f, 0.0f };
+GLfloat LightDiffuse[] = { 0.5f, 0.5f, 0.5f, 0.5f };
 GLfloat LightPosition[] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 double space_ship_rot_x = 0.0f;
@@ -29,7 +29,8 @@ void display(void) {
 
 	gluLookAt(	0.0f, 50.0f, 50.0f,	// posição da câmera
 				0.0f, 0.0f, 0.0f,	// ponto para o qual a camera está olhando
-				0.0f, 1.0f, 0.0f);	// vetor "up"
+				0.0f, 1.0f, 0.0f	// vetor "up"
+			 );
 
 	//***** Manobras da nave 
 	//***** (definir valores máximos) (zerar quando botão não estiver mais pressionado)
@@ -49,7 +50,7 @@ void display(void) {
 
 int main(int argc, char **argv)
 {
-	if (!model->importFrmFile("spider.obj")) {
+	if (!model->importFrmFile("models/space_ship_tex.obj")) {
 		printErr("Model Import");
 		return 1;
 	}
@@ -60,12 +61,12 @@ int main(int argc, char **argv)
 	glutInitWindowPosition(100, 100);
 	glutCreateWindow(".: Asteroids 3D :.");
 
-	if (model->loadTexture() < 1) {
-		printDbgErr("Texture load");
+	if (!model->loadTexture()) {
+		printDbgErr("Load texture failed.");
 		return 1;
 	}
 
-	model->scale(0.5, 0.5, 0.5);
+	model->scale(1.5, 1.5, 1.5);
 
 	glutDisplayFunc(display);
 	//glutReshapeFunc(reshape);
@@ -86,7 +87,7 @@ int main(int argc, char **argv)
 
 	glEnable(GL_TEXTURE_2D);
 	glShadeModel(GL_SMOOTH);		 // Enables Smooth Shading
-	glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClearDepth(1.0f);				// Depth Buffer Setup
 	glEnable(GL_DEPTH_TEST);		// Enables Depth Testing
 	glDepthFunc(GL_LEQUAL);			// The Type Of Depth Test To Do
@@ -101,7 +102,6 @@ int main(int argc, char **argv)
 	glLightfv(GL_LIGHT1, GL_DIFFUSE, LightDiffuse);
 	glLightfv(GL_LIGHT1, GL_POSITION, LightPosition);
 	glEnable(GL_LIGHT1);
-
 	glutMainLoop();
 
     return 0;
