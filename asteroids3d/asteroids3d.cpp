@@ -11,8 +11,8 @@
 
 Model3D * model = new Model3D();
 
-GLfloat LightAmbient[] = { 0.5f, 0.5f, 0.5f, 0.0f };
-GLfloat LightDiffuse[] = { 0.5f, 0.5f, 0.5f, 0.5f };
+GLfloat LightAmbient[] = { 0.5f, 0.5f, 0.5f, 0.5f };
+GLfloat LightDiffuse[] = { 1.0f, 1.0f, 1.0f, 1.0f };
 GLfloat LightPosition[] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 double space_ship_rot_x = 0.0f;
@@ -27,20 +27,20 @@ void display(void) {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	// Clear The Screen And The Depth Buffer
 	glLoadIdentity();				// Reset MV Matrix
 
-	gluLookAt(	0.0f, 50.0f, 50.0f,	// posição da câmera
+	gluLookAt(	0.0f, 50.0f, 500.0f,	// posição da câmera
 				0.0f, 0.0f, 0.0f,	// ponto para o qual a camera está olhando
 				0.0f, 1.0f, 0.0f	// vetor "up"
 			 );
 
 	//***** Manobras da nave 
 	//***** (definir valores máximos) (zerar quando botão não estiver mais pressionado)
-
+	/*
 	glRotatef(space_ship_rot_x, 1.0f, 0.0f, 0.0f);
 	glRotatef(space_ship_rot_y, 0.0f, 1.0f, 0.0f);
 	glRotatef(space_ship_rot_z, 0.0f, 0.0f, 1.0f);
 
 	space_ship_rot_y = space_ship_rot_y < 359.0f ? space_ship_rot_y + 0.2f : 0.0f;
-
+	*/
 	model->render();
 
 	glFlush();
@@ -50,7 +50,7 @@ void display(void) {
 
 int main(int argc, char **argv)
 {
-	if (!model->importFrmFile("models/space_ship_tex.obj")) {
+	if (!model->importFrmFile("models/bg.obj")) {
 		printErr("Model Import");
 		return 1;
 	}
@@ -66,7 +66,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	model->scale(1.5, 1.5, 1.5);
+	//model->scale(2, 2, 2);
 
 	glutDisplayFunc(display);
 	//glutReshapeFunc(reshape);
@@ -80,7 +80,7 @@ int main(int argc, char **argv)
 
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	gluPerspective(45.0f, (GLfloat)WINDOW_WIDTH / (GLfloat)WINDOW_HEIGTH, 0.1f, 100.0f);
+	gluPerspective(45.0f, (GLfloat)WINDOW_WIDTH / (GLfloat)WINDOW_HEIGTH, 0.1f, 1500.0f);
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
