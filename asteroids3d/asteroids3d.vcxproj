@@ -150,11 +150,15 @@
   <ItemGroup>
     <ClInclude Include="err_handler.h" />
     <ClInclude Include="model3d.h" />
+    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="asteroids3d.cpp" />
     <ClCompile Include="err_handler.cpp" />
     <ClCompile Include="model3d.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="asteroids3d.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
