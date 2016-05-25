@@ -6,11 +6,12 @@
 
 #include "err_handler.h"
 #include "model3d.h"
+#include "Audio.h"
 
 //************************ CONFIG ************************
 
-#define WINDOW_WIDTH 1360					// Window width resolution
-#define	WINDOW_HEIGTH 768					// Window heigth resolution
+#define WINDOW_WIDTH			1360		// Window width resolution
+#define	WINDOW_HEIGTH			768			// Window heigth resolution
 
 #define LASER_MOVE_SPEED		10.0f		// Lasers movement speed
 #define SCENE_ROTATE_SPEED		2.0f		// Scene rotate speed
@@ -37,6 +38,10 @@ Model3D * laser = new Model3D();		// Lasers
 Model3D * crosshair = new Model3D();	// Crosshair
 Model3D * spaceship = new Model3D();	// Spaceship
 Model3D * asteroid = new Model3D();		// Asteroids
+Audio * space = new Audio();
+Audio * sfx_laser0 = new Audio();
+Audio * sfx_laser1 = new Audio();
+Audio * sfx_rocket = new Audio();
 
 //************************ GLOBAL ************************
 
@@ -56,11 +61,17 @@ int laser_list_first = 0;				// Last Laser Shot still alive
 //***********************************************************************************************************************
 
 void shot() {
-	lasers_pos[laser_count].x = laser_count % 2 == 0 ? -(spaceship_transl_x + 3.3f) : -(spaceship_transl_x - 3.3f);
+	int side = laser_count % 2;
+
+	lasers_pos[laser_count].x = side == 0 ? -(spaceship_transl_x + 3.3f) : -(spaceship_transl_x - 3.3f);
 	lasers_pos[laser_count].y = -spaceship_transl_y;
 	lasers_pos[laser_count].z = SPACESHIP_Z_POSITION - 2.0f;
 	lasers_pos[laser_count].rot = scene_rot_z;
 	laser_count = (laser_count + 1) % MAX_LASERS_SHOTS;
+
+	if(side == 0)
+		sfx_laser0->play();
+	else sfx_laser1->play();
 }
 
 //***********************************************************************************************************************
@@ -90,6 +101,8 @@ void keyPressed(unsigned char key, int x, int y) {
 		spaceship_rot_y = 360.0f - SPACESHIP_ROTATE;
 		spaceship_transl_x += spaceship_transl_x > -LIMITE_FLY_ZONE ? -SPACESHIP_MOVE_SPEED : 0.0f;
 	}
+	else if (key == 'p')
+		sfx_rocket->setVolume(128);
 	else if (key == 'j')
 		shot();
 
@@ -104,6 +117,8 @@ void keyRelease(unsigned char key, int x, int y) {
 		spaceship_rot_y = 0.0f;
 		spaceship_rot_z = 0.0f;
 	}
+	else if (key == 'p')
+		sfx_rocket->setVolume(64);
 
 	glutPostRedisplay();
 }
@@ -237,6 +252,26 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
+	if (!space->readFile("target_balls_cloud_fat_loop.wav")) {
+		printErr("Read space audio");
+		return 1;
+	}
+
+	if (!sfx_laser0->readFile("laser-blasts.wav")) {
+		printErr("Read space audio");
+		return 1;
+	}
+
+	if (!sfx_laser1->readFile("laser-blasts.wav")) {
+		printErr("Read space audio");
+		return 1;
+	}
+
+	if (!sfx_rocket->readFile("gas_stove_fire_loop.wav")) {
+		printErr("Read space audio");
+		return 1;
+	}
+
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_RGBA | GLUT_DEPTH | GLUT_DOUBLE);
 	glutInitWindowSize(WINDOW_WIDTH, WINDOW_HEIGTH);
@@ -304,6 +339,12 @@ int main(int argc, char **argv)
 	glLightfv(GL_LIGHT1, GL_SPECULAR, LightSpecular);
 	glLightfv(GL_LIGHT1, GL_POSITION, LightPosition);
 	glEnable(GL_LIGHT1);
+
+	//space->playLoop();
+	//space->setVolume(32);
+	sfx_rocket->playLoop();
+	sfx_rocket->setVolume(64);
+
 	glutMainLoop();
 
     return 0;

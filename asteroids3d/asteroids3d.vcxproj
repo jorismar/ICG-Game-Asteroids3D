@@ -93,7 +93,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies);assimp.lib;DevIL.lib;ILU.lib;ILUT.lib</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies);assimp.lib;DevIL.lib;ILU.lib;ILUT.lib;SDL2.lib;SDL2_mixer.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -148,14 +148,18 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Audio.h" />
     <ClInclude Include="err_handler.h" />
     <ClInclude Include="model3d.h" />
+    <ClInclude Include="Object3D.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="asteroids3d.cpp" />
+    <ClCompile Include="Audio.cpp" />
     <ClCompile Include="err_handler.cpp" />
     <ClCompile Include="model3d.cpp" />
+    <ClCompile Include="Object3D.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="asteroids3d.rc" />

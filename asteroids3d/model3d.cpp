@@ -18,7 +18,7 @@ bool Model3D::importFrmFile(const std::string& path) {
 
 	std::ifstream filein(this->obj_path.c_str());		// Check if file exists
 
-	ERR(filein.fail(), FILE_NOT_FOUND, false);			// Check and Capture Error
+	ERR(filein.fail(), false, "The requested file not found.");			// Check and Capture Error
 
 	filein.close();
 
@@ -26,7 +26,7 @@ bool Model3D::importFrmFile(const std::string& path) {
 
 	if (!this->scene) {
 		std::cout << this->importer.GetErrorString() << std::endl;
-		ERR(true, ASSIMP_IMPORTER_ERROR, false);	// Check and Capture Error
+		ERR(true, false, importer.GetErrorString());	// Check and Capture Error
 	}
 
 	return true;
@@ -35,11 +35,11 @@ bool Model3D::importFrmFile(const std::string& path) {
 int Model3D::loadTexture() {
 	ILboolean success;
 
-	ERR(ilGetInteger(IL_VERSION_NUM) < IL_VERSION, IL_WRONG_VERSION, -1);	// Check and Capture Error
+	ERR(ilGetInteger(IL_VERSION_NUM) < IL_VERSION, -1, "Wrong DevIL version. Old devil.dll in system32/SysWow64?");	// Check and Capture Error
 
 	ilInit();
 
-	ERR(this->scene->HasTextures(), ASSIMP_NOT_HAS_TEXTURE, -2);			// Check and Capture Error
+	ERR(this->scene->HasTextures(), -2, "Support for meshes with embedded textures is not implemented");			// Check and Capture Error
 
 	for (unsigned int i = 0; i < this->scene->mNumMaterials; i++) {
 		int texIndex = 0;
@@ -89,7 +89,7 @@ int Model3D::loadTexture() {
 
 		// Convert every colour component into unsigned byte.If your image contains 
 		// alpha channel you can replace IL_RGB with IL_RGBA
-		ERR(!ilConvertImage(IL_RGB, IL_UNSIGNED_BYTE), IL_CONVERT_IMG_FAIL, -4);
+		ERR(!ilConvertImage(IL_RGB, IL_UNSIGNED_BYTE), -4, "Couldn't convert image");
 		
 		glBindTexture(GL_TEXTURE_2D, this->textureIds[i]);	// Binding of texture name
 		
