@@ -1,4 +1,4 @@
-#include "model3d.h"
+#include "Model3D.h"
 
 Model3D::Model3D() {
 	this->scene = NULL;
@@ -129,6 +129,50 @@ void Model3D::scale(double x, double y, double z) {
 	this->ar_scale[0] = x;
 	this->ar_scale[1] = y;
 	this->ar_scale[2] = z;
+}
+
+BoundingBox Model3D::getBoundingBox() {
+	return this->bounding;
+}
+
+void Model3D::renderBoundingBox() {
+	glBegin(GL_LINE); {
+		glVertex3d(bounding.higher.x, bounding.higher.y, bounding.higher.z);
+		glVertex3d(bounding.higher.x, bounding.higher.y, bounding.less.z);
+
+		glVertex3d(bounding.higher.x, bounding.higher.y, bounding.higher.z);
+		glVertex3d(bounding.higher.x, bounding.less.y, bounding.higher.z);
+
+		glVertex3d(bounding.higher.x, bounding.higher.y, bounding.higher.z);
+		glVertex3d(bounding.less.x, bounding.higher.y, bounding.higher.z);
+
+		glVertex3d(bounding.higher.x, bounding.higher.y, bounding.less.z);
+		glVertex3d(bounding.higher.x, bounding.less.y, bounding.less.z);
+
+		glVertex3d(bounding.higher.x, bounding.higher.y, bounding.less.z);
+		glVertex3d(bounding.less.x, bounding.higher.y, bounding.less.z);
+
+		glVertex3d(bounding.less.x, bounding.higher.y, bounding.less.z);
+		glVertex3d(bounding.less.x, bounding.less.y, bounding.less.z);
+
+		glVertex3d(bounding.less.x, bounding.higher.y, bounding.less.z);
+		glVertex3d(bounding.less.x, bounding.higher.y, bounding.higher.z);
+
+		glVertex3d(bounding.less.x, bounding.higher.y, bounding.higher.z);
+		glVertex3d(bounding.less.x, bounding.less.y, bounding.higher.z);
+
+		glVertex3d(bounding.less.x, bounding.less.y, bounding.higher.z);
+		glVertex3d(bounding.less.x, bounding.less.y, bounding.less.z);
+
+		glVertex3d(bounding.less.x, bounding.less.y, bounding.higher.z);
+		glVertex3d(bounding.higher.x, bounding.less.y, bounding.higher.z);
+
+		glVertex3d(bounding.higher.x, bounding.less.y, bounding.higher.z);
+		glVertex3d(bounding.higher.x, bounding.less.y, bounding.less.z);
+
+		glVertex3d(bounding.higher.x, bounding.less.y, bounding.less.z);
+		glVertex3d(bounding.less.x, bounding.less.y, bounding.less.z);
+	} glEnd();
 }
 
 //************************************************ PRIVATE FUNCTIONS ************************************************
@@ -280,22 +324,35 @@ void Model3D::recursive_render(const struct aiScene *sc, const struct aiNode* nd
 					break;
 			}
 
+			bounding.higher = { mesh->mVertices[0].x, mesh->mVertices[0].y, mesh->mVertices[0].z};
+			bounding.less = { mesh->mVertices[0].x, mesh->mVertices[0].y, mesh->mVertices[0].z };
+
 			glBegin(face_mode);
 				for (i = 0; i < face->mNumIndices; i++) {						// go through all vertices in face
 					int vertexIndex = face->mIndices[i];						// get group index for current index
 
+					bounding.higher.x = mesh->mVertices[vertexIndex].x > bounding.higher.x ? mesh->mVertices[vertexIndex].x : bounding.higher.x;
+					bounding.higher.y = mesh->mVertices[vertexIndex].y > bounding.higher.y ? mesh->mVertices[vertexIndex].y : bounding.higher.y;
+					bounding.higher.z = mesh->mVertices[vertexIndex].z > bounding.higher.z ? mesh->mVertices[vertexIndex].z : bounding.higher.z;
+
+					bounding.less.x = mesh->mVertices[vertexIndex].x < bounding.less.x ? mesh->mVertices[vertexIndex].x : bounding.less.x;
+					bounding.less.y = mesh->mVertices[vertexIndex].y < bounding.less.y ? mesh->mVertices[vertexIndex].y : bounding.less.y;
+					bounding.less.z = mesh->mVertices[vertexIndex].z < bounding.less.z ? mesh->mVertices[vertexIndex].z : bounding.less.z;
+
 					if (mesh->mColors[0] != NULL)
 						this->Color4f(&mesh->mColors[0][vertexIndex]);
 
-					if (mesh->mNormals != NULL)
+					if (mesh->mNormals != NULL) {
 
 						if (mesh->HasTextureCoords(0))		//HasTextureCoords(texture_coordinates_set)
 						{
 							glTexCoord2f(mesh->mTextureCoords[0][vertexIndex].x, 1 - mesh->mTextureCoords[0][vertexIndex].y); //mTextureCoords[channel][vertex]
 						}
 
-					glNormal3fv(&mesh->mNormals[vertexIndex].x);
-					glVertex3fv(&mesh->mVertices[vertexIndex].x);
+						glNormal3fv(&mesh->mNormals[vertexIndex].x);
+						glVertex3fv(&mesh->mVertices[vertexIndex].x);
+					}
+					
 				}
 			glEnd();
 		}
@@ -307,3 +364,4 @@ void Model3D::recursive_render(const struct aiScene *sc, const struct aiNode* nd
 
 	glPopMatrix();
 }
+

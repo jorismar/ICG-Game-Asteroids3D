@@ -60,6 +60,5 @@ void Audio::resume() {
 }
 
 int Audio::setVolume(unsigned int level) {
-	// adicionar volume por porcentagem
-	return Mix_Volume(this->channel, level > 128 ? 128 : level);
+	return Mix_Volume(this->channel, 128 * (level > 100 ? 100 : level) / 100);
 }

@@ -2,7 +2,10 @@
 #define JB_MODEL3D_H
 
 // Check OS
-#include <Windows.h>
+#ifdef WIN32
+	#include <windows.h>
+#endif
+
 #include <map>
 #include <fstream>
 #include <GL/gl.h>
@@ -14,6 +17,7 @@
 #include <assimp/LogStream.hpp>
 
 #include "err_handler.h"
+#include "utils.h"
 
 class Model3D {
 	private:
@@ -27,6 +31,9 @@ class Model3D {
 		std::map<std::string, GLuint*> textureIdMap;	// map image filenames to textureIds
 		std::string		obj_path;
 		double			ar_scale[3];
+
+		// Utils
+		BoundingBox bounding;
 
 		void Color4f(const aiColor4D *color);
 		void set_float4(float f[4], float a, float b, float c, float d);
@@ -61,6 +68,10 @@ class Model3D {
 		void render();
 
 		void scale(double x, double y, double z);
+
+		void renderBoundingBox();
+
+		BoundingBox getBoundingBox();
 };
 
 #endif // !JB_MODEL3D_H

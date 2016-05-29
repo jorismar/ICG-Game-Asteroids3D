@@ -72,6 +72,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
+    <OutDir>$(ProjectDir)\bin\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
@@ -148,21 +149,29 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Audio.h" />
-    <ClInclude Include="err_handler.h" />
-    <ClInclude Include="model3d.h" />
-    <ClInclude Include="Object3D.h" />
-    <ClInclude Include="resource.h" />
+    <ResourceCompile Include="asteroids3d.rc" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="asteroids3d.cpp" />
     <ClCompile Include="Audio.cpp" />
+    <ClCompile Include="Background.cpp" />
     <ClCompile Include="err_handler.cpp" />
-    <ClCompile Include="model3d.cpp" />
+    <ClCompile Include="Laser.cpp" />
+    <ClCompile Include="Model3D.cpp" />
     <ClCompile Include="Object3D.cpp" />
+    <ClCompile Include="Spaceship.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="asteroids3d.rc" />
+    <ClInclude Include="asteroids3d.h" />
+    <ClInclude Include="Audio.h" />
+    <ClInclude Include="Background.h" />
+    <ClInclude Include="err_handler.h" />
+    <ClInclude Include="Laser.h" />
+    <ClInclude Include="Model3D.h" />
+    <ClInclude Include="Object.h" />
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="Spaceship.h" />
+    <ClInclude Include="utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

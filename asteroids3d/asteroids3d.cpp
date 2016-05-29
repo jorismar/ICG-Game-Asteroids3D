@@ -1,110 +1,305 @@
-#include <windows.h>
+#ifdef WIN32
+	#include <windows.h>
+#endif
+
 #include <GL/gl.h>
 #include <GL/glu.h>
 #include <GL/glut.h>
 #include <cmath>
+#include <thread>
+#include <cstdlib>
 
 #include "err_handler.h"
-#include "model3d.h"
+#include "Model3D.h"
 #include "Audio.h"
+#include "Spaceship.h"
+#include "Laser.h"
+#include "Background.h"
 
 //************************ CONFIG ************************
 
 #define WINDOW_WIDTH			1360		// Window width resolution
 #define	WINDOW_HEIGTH			768			// Window heigth resolution
 
-#define LASER_MOVE_SPEED		10.0f		// Lasers movement speed
-#define SCENE_ROTATE_SPEED		2.0f		// Scene rotate speed
+#define LASER_MOVE_SPEED		10.0f		// Lasers movement speed 10
+#define SCENE_ROTATE_SPEED		0.5f		// Scene rotate speed
 #define SPACESHIP_ROTATE		8.0f		// Spaceship rotate speed
-#define SPACESHIP_MOVE_SPEED	8.0f		// Spaceship movement speed
+#define SPACESHIP_MOVE_SPEED	1.0f		// Spaceship movement speed
 
-#define LIMITE_FLY_ZONE			400.0f		// Flight zone limit in each direction
+#define LIMITE_FLY_ZONE			100			// Flight zone limit in each direction
 #define SPACESHIP_Z_POSITION	700.0f		// Spaceship start Z position
 #define MAX_LASERS_SHOTS		1000		// Max lasers shots (restored after reaching the distance limit - Z = 0)
+#define MAX_ASTEROIDS_FLYING	200
 
-//************************ STRUCT ************************ <<--- Implementar classes mais tarde
+#define ASTEROID_BASE_HARDNESS	10
+#define ASTEROID_BASE_HEALTH	10
+#define ASTEROID_BASE_SPEED		2.0f
+#define SCORE_BASE_POINTS		10
 
-struct Laser {
-	double x;
-	double y;
-	double z;
-	double rot;
-};
 
-//************************ MODELS ************************
-
-Model3D * bg = new Model3D();			// Background
-Model3D * laser = new Model3D();		// Lasers
 Model3D * crosshair = new Model3D();	// Crosshair
-Model3D * spaceship = new Model3D();	// Spaceship
-Model3D * asteroid = new Model3D();		// Asteroids
-Audio * space = new Audio();
-Audio * sfx_laser0 = new Audio();
-Audio * sfx_laser1 = new Audio();
-Audio * sfx_rocket = new Audio();
-
-//************************ GLOBAL ************************
-
-double spaceship_rot_x = 0.0f;			// Spaceship rotation on X
-double spaceship_rot_y = 0.0f;			// Spaceship rotation on Y
-double spaceship_rot_z = 0.0f;			// Spaceship rotation on Z
-
-double scene_rot_z = 0.0f;				// Scene rotation on Z
-
-double spaceship_transl_x = 0.0f;		// Spaceship move on X
-double spaceship_transl_y = 0.0f;		// Spaceship move on Y
-
-Laser lasers_pos[MAX_LASERS_SHOTS];		// Lasers List
-int laser_count = 0;					// Lasers count
-int laser_list_first = 0;				// Last Laser Shot still alive
+Model3D * timesep	= new Model3D();
+Model3D * numbers	= new Model3D[10];
+Model3D * specials	= new Model3D();
+Model3D * life		= new Model3D();
+Model3D * asteroid1 = new Model3D();
 
 //***********************************************************************************************************************
 
-void shot() {
-	int side = laser_count % 2;
+Laser*		laser = new Laser();			// Laser object
+Spaceship*	spaceship = new Spaceship();	// Spaceship object
+Background* background = new Background();	// Environment object
 
-	lasers_pos[laser_count].x = side == 0 ? -(spaceship_transl_x + 3.3f) : -(spaceship_transl_x - 3.3f);
-	lasers_pos[laser_count].y = -spaceship_transl_y;
-	lasers_pos[laser_count].z = SPACESHIP_Z_POSITION - 2.0f;
-	lasers_pos[laser_count].rot = scene_rot_z;
-	laser_count = (laser_count + 1) % MAX_LASERS_SHOTS;
+typedef struct {
+	bool		alive;
+	Angle		rot;
+	Position	pos;
+} Scene, Shot;
 
-	if(side == 0)
-		sfx_laser0->play();
-	else sfx_laser1->play();
+struct Asteroid {
+	Angle		rot;
+	Position	pos;
+	double		size;
+	double		speed;
+	double		health;
+	double		hardness;
+	double		rot_animation;
+};
+
+// Lasers controls
+Shot shots_list[MAX_LASERS_SHOTS];	// Fired shots list
+bool cannon1_reloading = false;		// Cannon1 charge condition
+bool cannon2_reloading = false;		// Cannon2 charge condition
+bool side = true;					// Cannon selector: true = cannon 1, false = cannon 2
+unsigned int shots_first_pos = 0;			// Last Laser Shot still alive
+unsigned int shots_last_pos = 0;				// Shots count
+
+// Asteroids controls
+Asteroid astrd_list[MAX_ASTEROIDS_FLYING];
+unsigned int astrd_first_pos = 0;
+unsigned int astrd_last_pos = 0;
+
+// Game controller
+Scene scene;// = { {0.0f, 0.0f, 0.0f}, { 0.0f, 0.0f, 0.0f } };						// Scene attributes
+bool started = false;				// Game started flag
+unsigned int special_count = 0;		// Specials count
+unsigned int life_count = 3;		// Life count
+unsigned int score = 0;				// Score points
+
+double scene_z = 0.0f;
+//***********************************************************************************************************************
+
+void sleep(int time) {
+	std::this_thread::sleep_for(std::chrono::milliseconds(time));
+}
+
+//***********************************************************************************************************************
+double adapter = static_cast <double> (RAND_MAX / (LIMITE_FLY_ZONE * 2));		// Adjusting the operation to get the positive and negative results.
+double angle_adapter = RAND_MAX / 360.0f;
+double size_adapter = RAND_MAX / 6.0f;
+double difficulty = 5;
+bool asteroid_launched = false;
+
+void launcher() {
+	astrd_list[astrd_last_pos].pos.x = LIMITE_FLY_ZONE - static_cast <double> (rand()) / adapter;	// Random value of range -400 ~ 400
+	astrd_list[astrd_last_pos].pos.y = LIMITE_FLY_ZONE - static_cast <double> (rand()) / adapter;	// Random value of range -400 ~ 400
+	astrd_list[astrd_last_pos].pos.z = 0.0f;
+	astrd_list[astrd_last_pos].rot.z = scene_z;
+	astrd_list[astrd_last_pos].rot_animation = static_cast <double> (rand()) / angle_adapter;		// Random value of range 0 ~ 360
+	astrd_list[astrd_last_pos].size = (1.0f + static_cast <double> (rand()) / size_adapter) / 2.0f;	// Random value of range 1 ~ 3
+	astrd_list[astrd_last_pos].hardness = ASTEROID_BASE_HARDNESS * astrd_list[astrd_last_pos].size;
+	astrd_list[astrd_last_pos].health = ASTEROID_BASE_HEALTH * astrd_list[astrd_last_pos].size;
+	astrd_list[astrd_last_pos].speed = ASTEROID_BASE_SPEED * difficulty;
+
+	// Update the next position
+	astrd_last_pos = (astrd_last_pos + 1) % MAX_ASTEROIDS_FLYING;
+
+	asteroid_launched = true;
+}
+
+void renderAsteroids() {
+	if (!asteroid_launched)
+		return;
+
+	for (int i = astrd_first_pos; i != astrd_last_pos; i = (i + 1) % MAX_ASTEROIDS_FLYING) {
+		// Render the asteroid model
+		glPushMatrix(); {
+			glRotatef(360.0f - astrd_list[i].rot.z, 0.0f, 0.0f, 1.0f);
+			glTranslatef(astrd_list[i].pos.x, astrd_list[i].pos.y, astrd_list[i].pos.z);
+			glRotatef(astrd_list[i].rot_animation, 1.0f, 1.0f, 1.0f);
+			asteroid1->scale(astrd_list[i].size, astrd_list[i].size, astrd_list[i].size);
+			astrd_list[i].rot_animation = astrd_list[i].rot_animation < 360.0f ? astrd_list[i].rot_animation + 0.25f : 0.0f;
+			asteroid1->render();
+		} glPopMatrix();
+
+		// Update the next position on Z axis of this shot
+		astrd_list[i].pos.z += astrd_list[i].speed;
+
+		// Check if the laser reaches the limit of the scene
+		if (/*collisionTest() ||*/ astrd_list[i].pos.z > SPACESHIP_Z_POSITION + 100.0f) {
+			astrd_first_pos = (astrd_first_pos + 1) % MAX_LASERS_SHOTS;
+			
+			if (astrd_first_pos == astrd_last_pos)
+				asteroid_launched = false;
+		}
+	}
 }
 
 //***********************************************************************************************************************
 
+void shooter() {
+	// Check if the current cannon are reloading
+	if ((cannon1_reloading && side) || (cannon2_reloading && !side))
+		return;
+
+	// Set the laser attributes
+	shots_list[shots_last_pos].pos.x = side ? -(scene.pos.x - 3.3f) : -(scene.pos.x + 3.3f);
+	shots_list[shots_last_pos].pos.y = -scene.pos.y;
+	shots_list[shots_last_pos].pos.z = spaceship->getPosition().z - 2.0f;
+	shots_list[shots_last_pos].rot.z = scene_z;
+
+	// Update the next position
+	shots_last_pos = (shots_last_pos + 1) % MAX_LASERS_SHOTS;
+	
+	// Recharging the left laser cannon.
+	if (side) {			
+		cannon1_reloading = side;
+		std::thread cannon1([=]() {sleep(200); cannon1_reloading = false;});
+		cannon1.detach();
+	}
+	// Recharging the right laser cannon.
+	else {				
+		cannon2_reloading = !side;
+		std::thread cannon2([=]() {sleep(200); cannon2_reloading = false;});
+		cannon2.detach();
+	}
+
+	side = !side;		// Change cannon
+	laser->event(0);	// Call the laser event.
+}
+
+//***********************************************************************************************************************
+
+void shotsManager() {
+	for (int i = shots_first_pos; i != shots_last_pos; i = (i + 1) % MAX_LASERS_SHOTS) {
+		// Render the laser model
+		laser->dynamicRender(shots_list[i].pos, { 0.0f, 0.0f, 360.0f - shots_list[i].rot.z });
+
+		// Update the next position on Z axis of this shot
+		shots_list[i].pos.z -= laser->getSpeed();			
+		
+		// Check if the laser reaches the limit of the scene
+		if(shots_list[i].pos.z <= 0.0f)
+			shots_first_pos = (shots_first_pos + 1) % MAX_LASERS_SHOTS;
+	}
+}
+
+//***********************************************************************************************************************
+
+unsigned int timeboard[6];
+
+void timer() {
+	for (timeboard[5] = 0; timeboard[5] < 6; timeboard[5]++)	// Minutes
+		for (timeboard[4] = 0; timeboard[4] < 10; timeboard[4]++)	// Minutes
+			for (timeboard[3] = 0; timeboard[3] < 6; timeboard[3]++)	// Secounds
+				for (timeboard[2] = 0; timeboard[2] < 10; timeboard[2]++)	// Secounds
+					for (timeboard[1] = 0; timeboard[1] < 10; timeboard[1]++)	// Milissecounds
+						sleep(100);
+}
+
+//***********************************************************************************************************************
+
+void renderTimer() {
+	double pos = 13.2f;
+
+	for (unsigned int i = 0; i < 6; i++) {
+		glPushMatrix(); {
+			if (i == 2 || i == 4) {
+				pos += 0.4f;
+				glPushMatrix(); {
+					glTranslatef(pos, 16.9f, 0.0f);
+					timesep->render();
+				} glPopMatrix();
+				pos -= 0.7f;
+			}
+
+			glTranslatef(pos, 16.9f, 0.0f);
+			numbers[timeboard[i]].render();
+			pos -= 0.7f;
+		} glPopMatrix();
+	}
+}
+
+//***********************************************************************************************************************
+
+unsigned int get_life_base = 10;
+unsigned int scoreboard[7];
+
+void scorer(int sum) {
+	score += sum;
+
+	if (score > get_life_base && life_count < 5) {
+		life_count++;
+		get_life_base *= 10;
+	}
+
+	int aux = score;
+
+	for(unsigned int i = 0; i < 7; i++) {
+		scoreboard[i] = aux % 10;
+		aux /= 10;
+	}
+}
+
+//***********************************************************************************************************************
+
+void renderScore() {
+	double pos = -13.7f;
+
+	for (int i = 0; i < 7; i++) {
+		glPushMatrix(); {
+			glTranslatef(pos, 16.9f, 0.0f);
+			numbers[scoreboard[6 - i]].render();
+			pos += 0.7f;
+		} glPopMatrix();
+	}
+}
+
+//***********************************************************************************************************************
+double spaceship_speed = SPACESHIP_MOVE_SPEED;
+
 void keyPressed(unsigned char key, int x, int y) {
 	if (key == 'w') {
-		spaceship_rot_x = 360.0f - SPACESHIP_ROTATE;
-		spaceship_transl_y += spaceship_transl_y < LIMITE_FLY_ZONE ? SPACESHIP_MOVE_SPEED : 0.0f;
+		spaceship->event(0);
+		scene.pos.y += scene.pos.y < LIMITE_FLY_ZONE ? spaceship_speed : 0.0f;
 	}
 	else if (key == 's') {
-		spaceship_rot_x = SPACESHIP_ROTATE;
-		spaceship_transl_y += spaceship_transl_y > -LIMITE_FLY_ZONE ? -SPACESHIP_MOVE_SPEED : 0.0f;
+		spaceship->event(1);
+		scene.pos.y += scene.pos.y > -LIMITE_FLY_ZONE ? -spaceship_speed : 0.0f;
 	}
 	else if (key == 'a') {
-		spaceship_rot_z = SPACESHIP_ROTATE + 1.0f;
-		scene_rot_z = scene_rot_z < 360.0f ? scene_rot_z + SCENE_ROTATE_SPEED : scene_rot_z - 360.0f;
+		spaceship->event(2);
+		scene_z = scene_z > 0.0f ? scene_z - spaceship_speed : 360.0f + scene_z - spaceship_speed;
 	}
 	else if (key == 'd') {
-		spaceship_rot_z = 360.0f - SPACESHIP_ROTATE + 1.0f;
-		scene_rot_z = scene_rot_z > 0.0f ? scene_rot_z - SCENE_ROTATE_SPEED : 360.0f - scene_rot_z;
+		spaceship->event(3);
+		scene_z = scene_z < 360.0f ? scene_z + spaceship_speed : scene_z - 360.0f + spaceship_speed;
 	}
 	else if (key == 'q') {
-		spaceship_rot_y = SPACESHIP_ROTATE;
-		spaceship_transl_x += spaceship_transl_x < LIMITE_FLY_ZONE ? SPACESHIP_MOVE_SPEED : 0.0f;
+		spaceship->event(4);
+		scene.pos.x += scene.pos.x < LIMITE_FLY_ZONE ? spaceship_speed : 0.0f;
 	}
 	else if (key == 'e') {
-		spaceship_rot_y = 360.0f - SPACESHIP_ROTATE;
-		spaceship_transl_x += spaceship_transl_x > -LIMITE_FLY_ZONE ? -SPACESHIP_MOVE_SPEED : 0.0f;
+		spaceship->event(5);
+		scene.pos.x += scene.pos.x > -LIMITE_FLY_ZONE ? -spaceship_speed : 0.0f;
 	}
-	else if (key == 'p')
-		sfx_rocket->setVolume(128);
-	else if (key == 'j')
-		shot();
+	else if (key == 'j') {
+		shooter();
+		scorer(1);
+	}
+
+	if (key == 'w' || key == 'a' || key == 's' || key == 'd' || key == 'q' || key == 'e')
+		spaceship_speed += spaceship_speed < 10.0f ? SPACESHIP_MOVE_SPEED : 0.0f;
 
 	glutPostRedisplay();
 }
@@ -113,12 +308,9 @@ void keyPressed(unsigned char key, int x, int y) {
 
 void keyRelease(unsigned char key, int x, int y) {
 	if (key == 'w' || key == 'a' || key == 's' || key == 'd' || key == 'q' || key == 'e') {
-		spaceship_rot_x = 0.0f;
-		spaceship_rot_y = 0.0f;
-		spaceship_rot_z = 0.0f;
+		spaceship->event(6);
+		spaceship_speed = SPACESHIP_MOVE_SPEED;
 	}
-	else if (key == 'p')
-		sfx_rocket->setVolume(64);
 
 	glutPostRedisplay();
 }
@@ -126,65 +318,19 @@ void keyRelease(unsigned char key, int x, int y) {
 //***********************************************************************************************************************
 
 void OnMouseClick(int button, int state, int x, int y) {
-	if (button == 0)
-		shot();
+	if (button == 0) {
+		shooter();
+		scorer(1);
+	}
 
 	glutPostRedisplay();
 }
 
-//***********************************************************************************************************************
-
-void renderLaser() {
-	unsigned int i = laser_list_first;
-
-	while (lasers_pos[i].z > 0.0f && i != laser_count) {
-		glPushMatrix(); {
-			glRotatef(360.0f - lasers_pos[i].rot, 0.0f, 0.0f, 1.0f);
-
-			glTranslatef(lasers_pos[i].x, lasers_pos[i].y, lasers_pos[i].z);
-
-			lasers_pos[i].z -= LASER_MOVE_SPEED;
-
-			if (lasers_pos[i].z <= 0.0f)
-				laser_list_first = (laser_list_first + 1) % MAX_LASERS_SHOTS;
-
-			i++;
-			laser->render();
-		} glPopMatrix();
-	}
-}
-
-//***********************************************************************************************************************
-
-void renderSpaceship() {
-	glPushMatrix(); {
-		glTranslatef(0.0f, 0.0f, SPACESHIP_Z_POSITION);
-
-		glRotatef(12.0f, 1.0f, 0.0f, 0.0f);
-
-		if (spaceship_rot_x > 0 || spaceship_rot_y > 0 || spaceship_rot_z > 0) {
-			glRotatef(spaceship_rot_x, 1.0f, 0.0f, 0.0f);
-			glRotated(spaceship_rot_y, 0.0f, 1.0f, 0.0f);
-			glRotated(spaceship_rot_z, 0.0f, 0.0f, 1.0f);
-		}
-
-		spaceship->render();
-	} glPopMatrix();
-}
-
-//***********************************************************************************************************************
-
-void renderBackground() {
-	glPushMatrix(); {
-		bg->render();
-	} glPopMatrix();
-}
-
-//***********************************************************************************************************************
+//***********************************************************************************************************************/
 
 void renderCrosshair() {
 	glPushMatrix(); {
-		glTranslatef(0.0f, 9.0f, SPACESHIP_Z_POSITION);
+		glTranslatef(0.0f, 9.6f, 0.0f);
 		crosshair->render();
 	} glPopMatrix();
 
@@ -193,13 +339,60 @@ void renderCrosshair() {
 //***********************************************************************************************************************
 
 void sceneTransformations() {
-	glTranslatef(spaceship_transl_x, spaceship_transl_y, 0.0f);
+	glTranslatef(scene.pos.x, scene.pos.y, 0.0f);
 
-	if (scene_rot_z != 0)
-		glRotatef(scene_rot_z, 0.0f, 0.0f, 1.0f);
+	if (scene_z != 0.0f)
+		glRotatef(scene_z, 0.0f, 0.0f, 1.0f);
 }
 
 //***********************************************************************************************************************
+
+void renderLifeboard() {
+	double pos = -13.4f;
+
+	for (int i = 0; i < life_count; i++) {
+		glPushMatrix(); {
+			glTranslatef(pos, 16.2f, 0.0f);
+			life->render();
+			pos += 0.9f;
+		} glPopMatrix();
+	}
+}
+
+//***********************************************************************************************************************
+
+void renderSpecialsBoard() {
+	double pos = 13.3f;
+
+	for (int i = 0; i < special_count; i++) {
+		glPushMatrix(); {
+			glTranslatef(pos, 16.1f, 0.0f);
+			//glTranslatef(pos, 16.1f, SPACESHIP_Z_POSITION + 20);
+			specials->render();
+			pos -= 0.9f;
+		} glPopMatrix();
+	}
+}
+
+void renderGUI() {
+	glPushMatrix(); {
+		glTranslatef(0.0f, 0.0f, SPACESHIP_Z_POSITION + 20);
+
+		renderCrosshair();
+		renderScore();
+		renderTimer();
+		renderLifeboard();
+		renderSpecialsBoard();
+
+	} glPopMatrix();
+}
+
+//***********************************************************************************************************************
+
+bool collisionTest(Object * obj1, Object * obj2) {
+	//obj1->getBoundingBox(0).higher.z < obj2->getBoundingBox(0).
+	return true;
+}
 
 void display(void) {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	// Clear The Screen And The Depth Buffer
@@ -210,13 +403,18 @@ void display(void) {
 		0.0f, 1.0f, 0.0f									// vetor "up"
 	);
 
-	renderSpaceship();
-	renderCrosshair();
+	renderGUI();
 
-	sceneTransformations();
+	spaceship->render();
 
-	renderLaser();
-	renderBackground();
+	glPushMatrix(); {
+		sceneTransformations();
+
+		renderAsteroids();
+	
+		shotsManager();
+		background->render();
+	} glPopMatrix();
 
 	glFlush();
 	glutSwapBuffers();
@@ -225,53 +423,6 @@ void display(void) {
 
 int main(int argc, char **argv)
 {
-	GLfloat LightAmbient[] = { 0.5f, 0.5f, 0.5f, 0.5f };
-	GLfloat LightDiffuse[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-	GLfloat LightPosition[] = { 0.0f, 0.0f, 0.0f, 0.0f };
-	GLfloat LightSpecular[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-
-	lasers_pos[0].z = 0.0f;
-
-	if (!bg->importFrmFile("models/bg.obj")) {
-		printErr("Model Import");
-		return 1;
-	}
-
-	if (!crosshair->importFrmFile("models/crosshair.obj")) {
-			printErr("Model Import");
-			return 1;
-		}
-
-	if (!laser->importFrmFile("models/laser.obj")) {
-		printErr("Model Import");
-		return 1;
-	}
-
-	if (!spaceship->importFrmFile("models/spaceship_specular.obj")) {
-		printErr("Model Import");
-		return 1;
-	}
-
-	if (!space->readFile("target_balls_cloud_fat_loop.wav")) {
-		printErr("Read space audio");
-		return 1;
-	}
-
-	if (!sfx_laser0->readFile("laser-blasts.wav")) {
-		printErr("Read space audio");
-		return 1;
-	}
-
-	if (!sfx_laser1->readFile("laser-blasts.wav")) {
-		printErr("Read space audio");
-		return 1;
-	}
-
-	if (!sfx_rocket->readFile("gas_stove_fire_loop.wav")) {
-		printErr("Read space audio");
-		return 1;
-	}
-
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_RGBA | GLUT_DEPTH | GLUT_DOUBLE);
 	glutInitWindowSize(WINDOW_WIDTH, WINDOW_HEIGTH);
@@ -281,30 +432,7 @@ int main(int argc, char **argv)
 	glutKeyboardUpFunc(keyRelease);
 	glutMouseFunc(OnMouseClick);
 
-	if (!bg->loadTexture()) {
-		printDbgErr("Load texture failed.");
-		return 1;
-	}
-
-	if (!crosshair->loadTexture()) {
-		printDbgErr("Load texture failed.");
-		return 1;
-	}
-
-	if (!laser->loadTexture()) {
-		printDbgErr("Load texture failed.");
-		return 1;
-	}
-
-	if (!spaceship->loadTexture()) {
-		printDbgErr("Load texture failed.");
-		return 1;
-	}
-	
-	bg->scale(2.2, 2.2, 2.2);
-	spaceship->scale(0.7, 0.7, 0.7);
-	laser->scale(1.2, 1.2, 1.2);
-	crosshair->scale(0.7f, 0.7f, 0.7f);
+	Audio::init();
 
 	glutDisplayFunc(display);
 	//glutReshapeFunc(reshape);
@@ -320,6 +448,8 @@ int main(int argc, char **argv)
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClearDepth(1.0f);				// Depth Buffer Setup
 
 	glEnable(GL_TEXTURE_2D);
 	glShadeModel(GL_SMOOTH);		 // Enables Smooth Shading
@@ -334,84 +464,123 @@ int main(int argc, char **argv)
 	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
 	glEnable(GL_NORMALIZE);
 
+	GLfloat LightAmbient[] = { 0.5f, 0.5f, 0.5f, 0.5f };
+	GLfloat LightDiffuse[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	GLfloat LightSpecular[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	GLfloat LightPosition[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+
 	glLightfv(GL_LIGHT1, GL_AMBIENT, LightAmbient);
 	glLightfv(GL_LIGHT1, GL_DIFFUSE, LightDiffuse);
 	glLightfv(GL_LIGHT1, GL_SPECULAR, LightSpecular);
 	glLightfv(GL_LIGHT1, GL_POSITION, LightPosition);
 	glEnable(GL_LIGHT1);
 
-	//space->playLoop();
-	//space->setVolume(32);
-	sfx_rocket->playLoop();
-	sfx_rocket->setVolume(64);
+	if (!crosshair->importFrmFile("resource/models/crosshair.obj")) { printErr("Model Import"); return 1; }
+
+	if (!numbers[0].importFrmFile("resource/models/0.obj")) { printErr("Model Import"); return 1; }
+	if (!numbers[1].importFrmFile("resource/models/1.obj")) { printErr("Model Import"); return 1; }
+	if (!numbers[2].importFrmFile("resource/models/2.obj")) { printErr("Model Import"); return 1; }
+	if (!numbers[3].importFrmFile("resource/models/3.obj")) { printErr("Model Import"); return 1; }
+	if (!numbers[4].importFrmFile("resource/models/4.obj")) { printErr("Model Import"); return 1; }
+	if (!numbers[5].importFrmFile("resource/models/5.obj")) { printErr("Model Import"); return 1; }
+	if (!numbers[6].importFrmFile("resource/models/6.obj")) { printErr("Model Import"); return 1; }
+	if (!numbers[7].importFrmFile("resource/models/7.obj")) { printErr("Model Import"); return 1; }
+	if (!numbers[8].importFrmFile("resource/models/8.obj")) { printErr("Model Import"); return 1; }
+	if (!numbers[9].importFrmFile("resource/models/9.obj")) { printErr("Model Import"); return 1; }
+	if (!timesep->importFrmFile("resource/models/timesep.obj")) { printErr("Model Import"); return 1; }
+
+	if (!specials->importFrmFile("resource/models/star.obj")) { printErr("Model Import"); return 1; }
+	if (!life->importFrmFile("resource/models/heart.obj")) { printErr("Model Import"); return 1; }
+
+	if (!crosshair->loadTexture()) { printDbgErr("Load texture failed."); return 1; }
+
+	if (!numbers[0].loadTexture()) { printDbgErr("Load texture failed."); return 1; }
+	if (!numbers[1].loadTexture()) { printDbgErr("Load texture failed."); return 1; }
+	if (!numbers[2].loadTexture()) { printDbgErr("Load texture failed."); return 1; }
+	if (!numbers[3].loadTexture()) { printDbgErr("Load texture failed."); return 1; }
+	if (!numbers[4].loadTexture()) { printDbgErr("Load texture failed."); return 1; }
+	if (!numbers[5].loadTexture()) { printDbgErr("Load texture failed."); return 1; }
+	if (!numbers[6].loadTexture()) { printDbgErr("Load texture failed."); return 1; }
+	if (!numbers[7].loadTexture()) { printDbgErr("Load texture failed."); return 1; }
+	if (!numbers[8].loadTexture()) { printDbgErr("Load texture failed."); return 1; }
+	if (!numbers[9].loadTexture()) { printDbgErr("Load texture failed."); return 1; }
+	if (!timesep->loadTexture()) { printDbgErr("Load texture failed."); return 1; }
+
+	if (!specials->loadTexture()) { printDbgErr("Load texture failed."); return 1; }
+	if (!life->loadTexture()) { printDbgErr("Load texture failed."); return 1; }
+
+	crosshair->scale(0.55f, 0.55f, 0.55f);
+	life->scale(0.21f, 0.21f, 0.21f);
+	specials->scale(0.25f, 0.25f, 0.25f);
+
+	//********************** FILES ***********************
+
+	std::string models_folder = "resource/models/";
+	std::string sounds_folder = "resource/sound/sfx/";
+
+	std::string spaceship_obj_filename	= models_folder + "spaceship.obj";
+	std::string laser_obj_filename		= models_folder + "laser.obj";
+	std::string bg_obj_filename			= models_folder + "bg.obj";
+	std::string asteroid1_obj_filename	= models_folder + "asteroid1.obj";
+
+	std::string spaceship_sfx_filename	= sounds_folder + "game/spaceship/gas_stove_fire_loop.wav";
+	std::string laser_sfx_filename		= sounds_folder + "game/spaceship/laser_blast_01.wav";
+	std::string bg_sfx_filename			= sounds_folder + "game/environment/target_balls_cloud_fat_loop.wav";
+
+	//*********************** LOAD ***********************
+
+	laser	   -> load( &laser_obj_filename,	 1, &laser_sfx_filename,	 1 );	// Laser
+	spaceship  -> load( &spaceship_obj_filename, 1, &spaceship_sfx_filename, 1 );	// Spaceship
+	background -> load( &bg_obj_filename,		 1, &bg_sfx_filename,		 1 );	// Background and Enviroment
+	if (!asteroid1->importFrmFile(asteroid1_obj_filename)) { printErr("Asteroid1 import"); return 1; }
+	if (!asteroid1->loadTexture()) { printDbgErr("Asteroid1 texture load failed"); return 1; }
+
+	//********************** CONFIG **********************
+
+	// Spaceship
+	spaceship->setPosition(0.0f, 0.0f, SPACESHIP_Z_POSITION);
+	spaceship->setScale(0.7f);
+	spaceship->setRotation(12.0f, true, false, false);
+	spaceship->setAnimationRotateInc(8.0f);
+
+	// Laser
+	laser->setScale(1.2f);
+	laser->setSpeed(10.0f);
+
+	// Backgroud
+	background->setScale(2.2f);
+
+	// Asteroid 1
+	asteroid1->scale(0.5f, 0.5f, 0.5f);
+
+	//********************** START ***********************
+
+	//scene.rot.z = 0.0f;// = { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f } };
+
+	spaceship->start();
+	background->start();
+
+	laser	  ->getAudio(0)->setVolume(25);
+	background->getAudio(0)->setVolume(15);
+	spaceship ->getAudio(0)->setVolume(75);
+
+	std::thread launchAsteroid(
+		[=]() {
+			while (true) {
+				launcher();
+				sleep(3500 / difficulty);
+			}
+		}
+	);
+
+	launchAsteroid.detach();
+
+	std::thread tm(timer);
+	tm.detach();
+
+	//****************************************************
 
 	glutMainLoop();
 
     return 0;
 }
-
-/* SDL TEST 
-
-#include <windows.h>
-
-#define SDL_MAIN_HANDLED
-
-#include <SDL.h>
-#include <SDL_mixer.h>
-#include <stdio.h>
-
-int main(int argc, char **argv) {
-
-//Inicializando o SDL e o SDL_mixer\n");
-if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) {
-fprintf(stderr, "Nao foi possivel inicializar o SDL: %s", SDL_GetError());
-return 1;
-}
-
-int audio_rate = 22050;
-/* 22050 é o ideal para a frequência na maioria dos jogos.*
-
-Uint16 audio_format = AUDIO_S16SYS; /* Ajuste de amostras com 16 bits. Pode ser necessário alterar para 8 bits: AUDIO_S8 *
-int audio_channels = 2; /* 1-Mono; 2-Stereo *
-int audio_buffers = 4096; /* Buffer para armazenamento de trechos do audio*
-
-						  /* Mix_OpenAudio inicializa o sistema de audio de acordo com as configurações estabelecidas acima *
-if (Mix_OpenAudio(audio_rate, audio_format, audio_channels, audio_buffers) != 0) {
-	fprintf(stderr, "Nao foi possivel inicializar o audio: %s\n", Mix_GetError());
-	exit(1);
-}
-
-/* Ponteiro que receberá a amostra de audio do arquivo WAV e armazenará essa amostra na memória *
-Mix_Chunk *sound = NULL;
-
-sound = Mix_LoadWAV("beat.wav"); /* Carrega a música a partir do arquivo WAV) *
-if (sound == NULL) {
-	fprintf(stderr, "Impossível carregar arquivo WAV: %s\n", Mix_GetError());
-}
-
-/* Abrir janela em 320x240 *
-SDL_Surface *screen;
-screen = SDL_SetVideoMode(320, 240, 0, SDL_ANYFORMAT);
-if (screen = NULL) {
-fprintf(stderr, "Impossível configurar modo de vídeo: s\n", SDL_GetError());
-return 1;
-}
-*
-int channel;
-channel = Mix_PlayChannel(-1, sound, 0);
-if (channel == -1) {
-	fprintf(stderr, "Impossível reproduzir arquivo WAV: %s\n", Mix_GetError());
-}
-
-//* Aguarda o fim da reprodução e libera os recursos alocados.
-while (Mix_Playing(channel) != 0);
-
-Mix_FreeChunk(sound);
-
-Mix_CloseAudio();
-
-SDL_Quit();
-
-return 0;
-}
-*/

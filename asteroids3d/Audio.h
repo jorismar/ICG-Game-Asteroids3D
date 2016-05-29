@@ -35,8 +35,8 @@ class Audio {
 		int setVolume(unsigned int level);
 
 		static int init() {
-			int ret = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
-
+			int ret = SDL_Init(SDL_INIT_AUDIO);
+			Mix_AllocateChannels(16);
 			ERR(ret != 0, ret, SDL_GetError());
 			
 			return ret;
