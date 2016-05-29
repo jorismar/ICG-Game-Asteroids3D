@@ -548,7 +548,7 @@ int main(int argc, char **argv)
 	laser->setSpeed(10.0f);
 
 	// Backgroud
-	background->setScale(2.2f);
+	background->setScale(1.8f);
 
 	// Asteroid 1
 	asteroid1->scale(0.5f, 0.5f, 0.5f);
