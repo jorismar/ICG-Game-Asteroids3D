@@ -223,8 +223,8 @@ void Model3D::apply_material(const aiMaterial *mtl)
 		glBindTexture(GL_TEXTURE_2D, texId);
 	}
 
-//	this->set_float4(c, 1.0f, 1.0f, 1.0f, 1.0f);
-	this->set_float4(c, 0.8f, 0.8f, 0.8f, 1.0f);
+	this->set_float4(c, 1.0f, 1.0f, 1.0f, 1.0f);
+//	this->set_float4(c, 0.8f, 0.8f, 0.8f, 1.0f);
 	if (AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_DIFFUSE, &diffuse))
 		this->color4_to_float4(&diffuse, c);
 
@@ -237,8 +237,8 @@ void Model3D::apply_material(const aiMaterial *mtl)
 
 	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, c);
 
-//	this->set_float4(c, 1.0f, 1.0f, 1.0f, 1.0f);
-	this->set_float4(c, 0.2f, 0.2f, 0.2f, 1.0f);
+	this->set_float4(c, 1.0f, 1.0f, 1.0f, 1.0f);
+//	this->set_float4(c, 0.2f, 0.2f, 0.2f, 1.0f);
 	if (AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_AMBIENT, &ambient))
 		this->color4_to_float4(&ambient, c);
 
@@ -255,8 +255,9 @@ void Model3D::apply_material(const aiMaterial *mtl)
 	ret1 = aiGetMaterialFloatArray(mtl, AI_MATKEY_SHININESS, &shininess, &max);
 	max = 1;
 	ret2 = aiGetMaterialFloatArray(mtl, AI_MATKEY_SHININESS_STRENGTH, &strength, &max);
-	if ((ret1 == AI_SUCCESS) && (ret2 == AI_SUCCESS))
-		glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, shininess * strength);
+
+	if ((ret1 == AI_SUCCESS))// && (ret2 == AI_SUCCESS))
+		glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 128.0f);//shininess * strength);
 	else {
 		glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 0.0f);
 //		this->set_float4(c, 1.0f, 1.0f, 1.0f, 1.0f);

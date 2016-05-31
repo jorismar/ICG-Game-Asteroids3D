@@ -157,7 +157,7 @@ void shooter() {
 	// Set the laser attributes
 	shots_list[shots_last_pos].pos.x = side ? -(scene.pos.x - 4.3f) : -(scene.pos.x + 4.3f);
 	shots_list[shots_last_pos].pos.y = -scene.pos.y;
-	shots_list[shots_last_pos].pos.z = spaceship->getPosition().z - 2.0f;
+	shots_list[shots_last_pos].pos.z = spaceship->getPosition().z - 3.0f;
 	shots_list[shots_last_pos].rot.z = scene_z;
 
 	// Update the next position
@@ -476,10 +476,10 @@ int main(int argc, char **argv)
 	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
 	glEnable(GL_NORMALIZE);
 
-	GLfloat LightAmbient[] = { 0.25f, 0.25f, 0.25f, 0.25f };
+	GLfloat LightAmbient[] = { 1.0f, 1.0f, 1.0f, 1.0f };
 	GLfloat LightDiffuse[] = { 1.0f, 1.0f, 1.0f, 1.0f };
 	GLfloat LightSpecular[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-	GLfloat LightPosition[] = { 0.0f, 0.0f, 1.0f, 0.0f };
+	GLfloat LightPosition[] = { 10.0f, 30.0f, 0.0f, 0.0f };
 
 	glLightfv(GL_LIGHT1, GL_AMBIENT, LightAmbient);
 	glLightfv(GL_LIGHT1, GL_DIFFUSE, LightDiffuse);
@@ -530,10 +530,10 @@ int main(int argc, char **argv)
 	std::string models_folder = "resource/models/";
 	std::string sounds_folder = "resource/sound/sfx/";
 
-	std::string spaceship_obj_filename	= models_folder + "spaceship2.obj";
+	std::string spaceship_obj_filename	= models_folder + "spaceship3.obj";
 	std::string laser_obj_filename		= models_folder + "laser.obj";
 	std::string bg_obj_filename			= models_folder + "bg.obj";
-	std::string asteroid1_obj_filename	= models_folder + "asteroid1.obj";
+	std::string asteroid1_obj_filename	= models_folder + "asteroids.obj";
 
 	std::string spaceship_sfx_filename	= sounds_folder + "game/spaceship/gas_stove_fire_loop.wav";
 	std::string laser_sfx_filename		= sounds_folder + "game/spaceship/laser_blast_01.wav";
@@ -556,7 +556,7 @@ int main(int argc, char **argv)
 	spaceship->setAnimationRotateInc(8.0f);
 
 	// Laser
-	laser->setScale(1.2f);
+	laser->setScale(1.3f);
 	laser->setSpeed(10.0f);
 
 	// Backgroud
