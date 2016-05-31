@@ -155,7 +155,7 @@ void shooter() {
 		return;
 
 	// Set the laser attributes
-	shots_list[shots_last_pos].pos.x = side ? -(scene.pos.x - 4.3f) : -(scene.pos.x + 4.3f);
+	shots_list[shots_last_pos].pos.x = side ? -(scene.pos.x - 3.9f) : -(scene.pos.x + 3.9f);
 	shots_list[shots_last_pos].pos.y = -scene.pos.y;
 	shots_list[shots_last_pos].pos.z = spaceship->getPosition().z - 3.0f;
 	shots_list[shots_last_pos].rot.z = scene_z;
@@ -551,7 +551,7 @@ int main(int argc, char **argv)
 
 	// Spaceship
 	spaceship->setPosition(0.0f, 0.0f, SPACESHIP_Z_POSITION);
-	spaceship->setScale(0.7f);
+	spaceship->setScale(0.65f);
 	spaceship->setRotation(12.0f, true, false, false);
 	spaceship->setAnimationRotateInc(8.0f);
 
