@@ -476,7 +476,7 @@ int main(int argc, char **argv)
 	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
 	glEnable(GL_NORMALIZE);
 
-	GLfloat LightAmbient[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	GLfloat LightAmbient[] = { 0.5f, 0.5f, 0.5f, 0.5f };
 	GLfloat LightDiffuse[] = { 1.0f, 1.0f, 1.0f, 1.0f };
 	GLfloat LightSpecular[] = { 1.0f, 1.0f, 1.0f, 1.0f };
 	GLfloat LightPosition[] = { 10.0f, 30.0f, 0.0f, 0.0f };

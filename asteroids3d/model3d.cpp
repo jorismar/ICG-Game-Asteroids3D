@@ -259,7 +259,7 @@ void Model3D::apply_material(const aiMaterial *mtl)
 	if ((ret1 == AI_SUCCESS))// && (ret2 == AI_SUCCESS))
 		glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 128.0f);//shininess * strength);
 	else {
-		glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 0.0f);
+		glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 128.0f);
 //		this->set_float4(c, 1.0f, 1.0f, 1.0f, 1.0f);
 		this->set_float4(c, 0.0f, 0.0f, 0.0f, 0.0f);
 		glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, c);

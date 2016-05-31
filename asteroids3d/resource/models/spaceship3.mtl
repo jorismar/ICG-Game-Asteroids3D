@@ -10,7 +10,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.000000
 d 1.000000
 illum 2
-map_Kd spaceship3.png
+map_Kd textures\spaceship3.png
 
 newmtl Chassi
 Ns 56.862745
@@ -21,7 +21,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.000000
 d 1.000000
 illum 2
-map_Kd spaceship3.png
+map_Kd textures\spaceship3.png
 
 newmtl Holes
 Ns 96.078431
@@ -32,7 +32,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.000000
 d 1.000000
 illum 1
-map_Kd spaceship3.png
+map_Kd textures\spaceship3.png
 
 newmtl Leds
 Ns 56.862745
@@ -43,7 +43,7 @@ Ke 2.000000 0.000000 0.000000
 Ni 1.000000
 d 1.000000
 illum 2
-map_Kd spaceship3.png
+map_Kd textures\spaceship3.png
 
 newmtl Windows
 Ns 56.862745
@@ -54,7 +54,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.000000
 d 1.000000
 illum 2
-map_Kd spaceship3.png
+map_Kd textures\spaceship3.png
 
 newmtl rocket
 Ns 96.078431
@@ -65,7 +65,7 @@ Ke 1.600000 1.600000 0.000000
 Ni 1.000000
 d 1.000000
 illum 1
-map_Kd spaceship3.png
+map_Kd textures\spaceship3.png
 
 newmtl rocket_fire
 Ns 96.078431
@@ -76,4 +76,4 @@ Ke 2.000000 2.000000 0.004241
 Ni 1.000000
 d 1.000000
 illum 1
-map_Kd spaceship3.png
+map_Kd textures\spaceship3.png
