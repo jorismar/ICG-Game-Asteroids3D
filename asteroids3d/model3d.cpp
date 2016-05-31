@@ -223,25 +223,29 @@ void Model3D::apply_material(const aiMaterial *mtl)
 		glBindTexture(GL_TEXTURE_2D, texId);
 	}
 
+//	this->set_float4(c, 1.0f, 1.0f, 1.0f, 1.0f);
 	this->set_float4(c, 0.8f, 0.8f, 0.8f, 1.0f);
 	if (AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_DIFFUSE, &diffuse))
 		this->color4_to_float4(&diffuse, c);
 
 	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, c);
 
-	this->set_float4(c, 0.0f, 0.0f, 0.0f, 1.0f);
+	this->set_float4(c, 1.0f, 1.0f, 1.0f, 1.0f);
+//	this->set_float4(c, 0.0f, 0.0f, 0.0f, 1.0f);
 	if (AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_SPECULAR, &specular))
 		this->color4_to_float4(&specular, c);
 
 	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, c);
 
+//	this->set_float4(c, 1.0f, 1.0f, 1.0f, 1.0f);
 	this->set_float4(c, 0.2f, 0.2f, 0.2f, 1.0f);
 	if (AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_AMBIENT, &ambient))
 		this->color4_to_float4(&ambient, c);
 
 	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, c);
 
-	this->set_float4(c, 0.0f, 0.0f, 0.0f, 1.0f);
+	this->set_float4(c, 1.0f, 1.0f, 1.0f, 1.0f);
+//	this->set_float4(c, 0.0f, 0.0f, 0.0f, 1.0f);
 	if (AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_EMISSIVE, &emission))
 		this->color4_to_float4(&emission, c);
 
@@ -255,6 +259,7 @@ void Model3D::apply_material(const aiMaterial *mtl)
 		glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, shininess * strength);
 	else {
 		glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 0.0f);
+//		this->set_float4(c, 1.0f, 1.0f, 1.0f, 1.0f);
 		this->set_float4(c, 0.0f, 0.0f, 0.0f, 0.0f);
 		glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, c);
 	}

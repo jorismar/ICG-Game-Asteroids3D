@@ -2,6 +2,7 @@
 	#include <windows.h>
 #endif
 
+#include <GL/glew.h>
 #include <GL/gl.h>
 #include <GL/glu.h>
 #include <GL/glut.h>
@@ -15,6 +16,7 @@
 #include "Spaceship.h"
 #include "Laser.h"
 #include "Background.h"
+#include "Shader.h"
 
 //************************ CONFIG ************************
 
@@ -136,7 +138,7 @@ void renderAsteroids() {
 		astrd_list[i].pos.z += astrd_list[i].speed;
 
 		// Check if the laser reaches the limit of the scene
-		if (/*collisionTest() ||*/ astrd_list[i].pos.z > SPACESHIP_Z_POSITION + 100.0f) {
+		if (/*collisionTest() ||*/ astrd_list[i].pos.z > SPACESHIP_Z_POSITION + 10.0f) {
 			astrd_first_pos = (astrd_first_pos + 1) % MAX_LASERS_SHOTS;
 			
 			if (astrd_first_pos == astrd_last_pos)
@@ -153,7 +155,7 @@ void shooter() {
 		return;
 
 	// Set the laser attributes
-	shots_list[shots_last_pos].pos.x = side ? -(scene.pos.x - 3.3f) : -(scene.pos.x + 3.3f);
+	shots_list[shots_last_pos].pos.x = side ? -(scene.pos.x - 4.3f) : -(scene.pos.x + 4.3f);
 	shots_list[shots_last_pos].pos.y = -scene.pos.y;
 	shots_list[shots_last_pos].pos.z = spaceship->getPosition().z - 2.0f;
 	shots_list[shots_last_pos].rot.z = scene_z;
@@ -232,15 +234,15 @@ void renderTimer() {
 
 //***********************************************************************************************************************
 
-unsigned int get_life_base = 10;
+unsigned int life_multiplier = 10;
 unsigned int scoreboard[7];
 
 void scorer(int sum) {
 	score += sum;
 
-	if (score > get_life_base && life_count < 5) {
+	if (score >= life_multiplier && life_count < 5) {
 		life_count++;
-		get_life_base *= 10;
+		life_multiplier *= 10;
 	}
 
 	int aux = score;
@@ -273,27 +275,33 @@ void keyPressed(unsigned char key, int x, int y) {
 		spaceship->event(0);
 		scene.pos.y += scene.pos.y < LIMITE_FLY_ZONE ? spaceship_speed : 0.0f;
 	}
-	else if (key == 's') {
+	
+	if (key == 's') {
 		spaceship->event(1);
 		scene.pos.y += scene.pos.y > -LIMITE_FLY_ZONE ? -spaceship_speed : 0.0f;
 	}
-	else if (key == 'a') {
+
+	if (key == 'a') {
 		spaceship->event(2);
 		scene_z = scene_z > 0.0f ? scene_z - spaceship_speed : 360.0f + scene_z - spaceship_speed;
 	}
-	else if (key == 'd') {
+	
+	if (key == 'd') {
 		spaceship->event(3);
 		scene_z = scene_z < 360.0f ? scene_z + spaceship_speed : scene_z - 360.0f + spaceship_speed;
 	}
-	else if (key == 'q') {
+	
+	if (key == 'q') {
 		spaceship->event(4);
 		scene.pos.x += scene.pos.x < LIMITE_FLY_ZONE ? spaceship_speed : 0.0f;
 	}
-	else if (key == 'e') {
+	
+	if (key == 'e') {
 		spaceship->event(5);
 		scene.pos.x += scene.pos.x > -LIMITE_FLY_ZONE ? -spaceship_speed : 0.0f;
 	}
-	else if (key == 'j') {
+	
+	if (key == 'j') {
 		shooter();
 		scorer(1);
 	}
@@ -394,6 +402,8 @@ bool collisionTest(Object * obj1, Object * obj2) {
 	return true;
 }
 
+//*******************************************************************************************************************************
+
 void display(void) {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	// Clear The Screen And The Depth Buffer
 	glLoadIdentity();				// Reset MV Matrix
@@ -421,6 +431,7 @@ void display(void) {
 	glutPostRedisplay();
 }
 
+
 int main(int argc, char **argv)
 {
 	glutInit(&argc, argv);
@@ -440,6 +451,7 @@ int main(int argc, char **argv)
 	//glutSpecialFunc(special);
 
 	//atexit(free_mem);
+
 	glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGTH);
 
 	glMatrixMode(GL_PROJECTION);
@@ -464,10 +476,10 @@ int main(int argc, char **argv)
 	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
 	glEnable(GL_NORMALIZE);
 
-	GLfloat LightAmbient[] = { 0.5f, 0.5f, 0.5f, 0.5f };
+	GLfloat LightAmbient[] = { 0.25f, 0.25f, 0.25f, 0.25f };
 	GLfloat LightDiffuse[] = { 1.0f, 1.0f, 1.0f, 1.0f };
 	GLfloat LightSpecular[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-	GLfloat LightPosition[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	GLfloat LightPosition[] = { 0.0f, 0.0f, 1.0f, 0.0f };
 
 	glLightfv(GL_LIGHT1, GL_AMBIENT, LightAmbient);
 	glLightfv(GL_LIGHT1, GL_DIFFUSE, LightDiffuse);
@@ -518,7 +530,7 @@ int main(int argc, char **argv)
 	std::string models_folder = "resource/models/";
 	std::string sounds_folder = "resource/sound/sfx/";
 
-	std::string spaceship_obj_filename	= models_folder + "spaceship.obj";
+	std::string spaceship_obj_filename	= models_folder + "spaceship2.obj";
 	std::string laser_obj_filename		= models_folder + "laser.obj";
 	std::string bg_obj_filename			= models_folder + "bg.obj";
 	std::string asteroid1_obj_filename	= models_folder + "asteroid1.obj";
@@ -530,7 +542,7 @@ int main(int argc, char **argv)
 	//*********************** LOAD ***********************
 
 	laser	   -> load( &laser_obj_filename,	 1, &laser_sfx_filename,	 1 );	// Laser
-	spaceship  -> load( &spaceship_obj_filename, 1, &spaceship_sfx_filename, 1 );	// Spaceship
+	if (!spaceship  -> load( &spaceship_obj_filename, 1, &spaceship_sfx_filename, 1 )) { printErr("Spaceship import"); return 1; };	// Spaceship
 	background -> load( &bg_obj_filename,		 1, &bg_sfx_filename,		 1 );	// Background and Enviroment
 	if (!asteroid1->importFrmFile(asteroid1_obj_filename)) { printErr("Asteroid1 import"); return 1; }
 	if (!asteroid1->loadTexture()) { printDbgErr("Asteroid1 texture load failed"); return 1; }
@@ -554,8 +566,6 @@ int main(int argc, char **argv)
 	asteroid1->scale(0.5f, 0.5f, 0.5f);
 
 	//********************** START ***********************
-
-	//scene.rot.z = 0.0f;// = { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f } };
 
 	spaceship->start();
 	background->start();
