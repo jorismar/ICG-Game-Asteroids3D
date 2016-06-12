@@ -14,6 +14,11 @@ typedef unsigned int _Err;
 		return ret;							\
 	}
 
+#define PRINT_ERR(msg, ret) {	\
+	printErr(msg);				\
+	return ret;					\
+}
+
 // ****************** USER FUNCTIONS *********************
 
 /*********************************************************

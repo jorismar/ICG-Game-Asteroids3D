@@ -1,373 +1,383 @@
 #include "Model3D.h"
 
 Model3D::Model3D() {
-	this->scene = NULL;
-	this->scene_list = 0;
+	this->object		= NULL;
+	this->scene_list	= 0;
 
-	this->ar_scale[0] = 1.0;
-	this->ar_scale[1] = 1.0;
-	this->ar_scale[2] = 1.0;
+	this->ar_scale[0]	= 1.0;
+	this->ar_scale[1]	= 1.0;
+	this->ar_scale[2]	= 1.0;
+
+	this->hasBoundBox = false;
 }
+
+//***********************************************************************************************************************
 
 Model3D::~Model3D() {
-
+	// NO IMPLEMENTATION NEEDED.
 }
 
-bool Model3D::importFrmFile(const std::string& path) {
-	this->obj_path = path;
+//***********************************************************************************************************************
 
-	std::ifstream filein(this->obj_path.c_str());		// Check if file exists
+bool Model3D::loadModel(const std::string& path) {
+	this->path = path;
 
-	ERR(filein.fail(), false, "The requested file not found.");			// Check and Capture Error
+	// Check if file exists
+	std::ifstream filein(this->path.c_str());		
+
+	// Check and capture error
+	ERR(filein.fail(), false, "The requested file not found.");		
 
 	filein.close();
 
-	this->scene = this->importer.ReadFile(this->obj_path, aiProcessPreset_TargetRealtime_Quality);
+	// Load model
+	this->object = this->importer.ReadFile(this->path, aiProcessPreset_TargetRealtime_Quality);		
 
-	if (!this->scene) {
-		std::cout << this->importer.GetErrorString() << std::endl;
-		ERR(true, false, importer.GetErrorString());	// Check and Capture Error
-	}
+	// Checks if object was loaded.
+	ERR(!this->object, false, importer.GetErrorString());		
 
 	return true;
 }
 
-int Model3D::loadTexture() {
-	ILboolean success;
+//***********************************************************************************************************************
 
-	ERR(ilGetInteger(IL_VERSION_NUM) < IL_VERSION, -1, "Wrong DevIL version. Old devil.dll in system32/SysWow64?");	// Check and Capture Error
+bool Model3D::loadTexture() {
+	// Check DevIL version
+	ERR(ilGetInteger(IL_VERSION_NUM) < IL_VERSION, false, "Wrong DevIL version. Old devil.dll in system32/SysWow64?");
 
-	ilInit();
+	// Initializes DevIL
+	ilInit();		
 
-	ERR(this->scene->HasTextures(), -2, "Support for meshes with embedded textures is not implemented");			// Check and Capture Error
+	// Checks if the model has textures
+	ERR(this->object->HasTextures(), false, "Support for meshes with embedded textures is not implemented");		
 
-	for (unsigned int i = 0; i < this->scene->mNumMaterials; i++) {
-		int texIndex = 0;
-		aiReturn texFound = AI_SUCCESS;
+	// Get the textures paths from material descriptor
+	for (unsigned int m = 0; m < this->object->mNumMaterials; m++) {
+		aiString texture_path;
 
-		aiString path;
-
-		while (texFound == AI_SUCCESS) {
-			texFound = this->scene->mMaterials[i]->GetTexture(aiTextureType_DIFFUSE, texIndex, &path);
-			this->textureIdMap[path.data] = NULL; //fill map with textures, pointers still NULL yet
-			texIndex++;
+		for (unsigned int t = 0; AI_SUCCESS == this->object->mMaterials[m]->GetTexture(aiTextureType_DIFFUSE, t, &texture_path); t++) {
+			this->textures[texture_path.data] = NULL;
 		}
 	}
 
-	int numTextures = this->textureIdMap.size();
-	
-	ILuint* imageIds = new ILuint[numTextures];		// array with DevIL image IDs
+	unsigned int num_textures= this->textures.size();	// Number of textures
+	GLuint* texture_ids	= new GLuint[num_textures];		// Array to storage textures ids
+	ILuint* img_ids	= new ILuint[num_textures];			// Array to storage images ids
 
-	//******************** generate DevIL Image IDs ********************
-	ilGenImages(numTextures, imageIds); // Generation of numTextures image names 
+	// Generation of DevIL image ids
+	ilGenImages(num_textures, img_ids);
 
-	this->textureIds = new GLuint[numTextures];		// create and fill array with GL texture ids
-	glGenTextures(numTextures, this->textureIds);	// Texture name generation 
-											 
-	std::map<std::string, GLuint*>::iterator itr = this->textureIdMap.begin(); // get iterator
+	// Generation of Textures ids
+	glGenTextures(num_textures, texture_ids);
 
+	// Get the model folder path
+	size_t pos = this->path.find_last_of("\\/");
+	std::string basepath = (std::string::npos == pos) ? "" : this->path.substr(0, pos + 1);
 
-	size_t pos = this->obj_path.find_last_of("\\/");
-	std::string basepath = (std::string::npos == pos) ? "" : this->obj_path.substr(0, pos + 1);
+	// Get iterator to sequential access of map
+	std::map<std::string, GLuint*>::iterator itr = this->textures.begin();
 
-	for (unsigned int i = 0; i < numTextures; i++) {
-		std::string filename = (*itr).first;	// get filename
-		(*itr).second = &this->textureIds[i];	// save texture id for filename in map
-		itr++;									// next texture
+	// Read all textures of model
+	for (unsigned int i = 0; i < num_textures; i++) {
+		std::string filename = basepath + (*itr).first;	// Get filename
+		(*itr).second = &texture_ids[i];				// Save texture id of this texture
 
-		ilBindImage(imageIds[i]);				// Binding of DevIL image name
-		std::string path = basepath + filename;	
+		// Binding image id
+		ilBindImage(img_ids[i]);				
 
-		success = ilLoadImage((ILstring)path.c_str());
+		// Load image
+		ERR(!ilLoadImage((ILstring) filename.c_str()), false, "Failed to read the image " + filename);
 
-		if (!success) {
-			std::cout << "Failed to read the " + path << std::endl;
-			return TRUE;
-			//return -3;
-			//ERR(true, IL_LOAD_IMG_FAIL, -3);
-		}
-
-		// Convert every colour component into unsigned byte.If your image contains 
-		// alpha channel you can replace IL_RGB with IL_RGBA
-		ERR(!ilConvertImage(IL_RGB, IL_UNSIGNED_BYTE), -4, "Couldn't convert image");
+		// Convert every colour component into unsigned byte.
+		ERR(!ilConvertImage(IL_RGBA, IL_UNSIGNED_BYTE), false, "Couldn't convert image");
 		
-		glBindTexture(GL_TEXTURE_2D, this->textureIds[i]);	// Binding of texture name
+		// Binding of texture id
+		glBindTexture(GL_TEXTURE_2D, texture_ids[i]);
 		
-		// redefine standard texture values
-		// We will use linear interpolation for magnification filter
+		// Use Linear Interpolation for magnification filter
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-		// We will use linear interpolation for minifying filter
+		// Use Linear Interpolation for minifying filter
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		
 		// Texture specification
-		glTexImage2D(GL_TEXTURE_2D, 0, ilGetInteger(IL_IMAGE_BPP), ilGetInteger(IL_IMAGE_WIDTH),
-			ilGetInteger(IL_IMAGE_HEIGHT), 0, ilGetInteger(IL_IMAGE_FORMAT), GL_UNSIGNED_BYTE,
-			ilGetData());
+		glTexImage2D(GL_TEXTURE_2D, 
+			0, 
+			ilGetInteger(IL_IMAGE_BPP), 
+			ilGetInteger(IL_IMAGE_WIDTH),
+			ilGetInteger(IL_IMAGE_HEIGHT), 
+			0, 
+			ilGetInteger(IL_IMAGE_FORMAT),
+			GL_UNSIGNED_BYTE,
+			ilGetData()
+		);
 
-		// we also want to be able to deal with odd texture dimensions
-		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-		glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
-		glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+		itr++;											// Next texture
 	}
 
-	ilDeleteImages(numTextures, imageIds);		// release memory used by image.
+	// Release memory used by image.
+	ilDeleteImages(num_textures, img_ids);
 
 	// Cleanup
-	delete[] imageIds;
-	imageIds = NULL;
+	delete[] img_ids;
+	img_ids = NULL;
 
-	return TRUE;
+	return true;
 }
+
+//***********************************************************************************************************************
 
 void Model3D::render() {
-	recursive_render(this->scene, this->scene->mRootNode);
+	// Render and map the texture
+	recursive_render(this->object, this->object->mRootNode);
 }
 
+//***********************************************************************************************************************
+
+void Model3D::scale(double factor) {
+	this->ar_scale[0] = factor;
+	this->ar_scale[1] = factor;
+	this->ar_scale[2] = factor;
+}
+
+//***********************************************************************************************************************
+
 void Model3D::scale(double x, double y, double z) {
+	// Sets the scale factor (scale is applied during rendering)
 	this->ar_scale[0] = x;
 	this->ar_scale[1] = y;
 	this->ar_scale[2] = z;
 }
 
-BoundingBox Model3D::getBoundingBox() {
-	return this->bounding;
+//***********************************************************************************************************************
+
+void Model3D::genBoundingBox(unsigned int mode) {
+	// Initiate with the first vertex
+	this->bounding.less.x = this->object->mMeshes[0]->mVertices[0].x;
+	this->bounding.less.y = this->object->mMeshes[0]->mVertices[0].y;
+	this->bounding.less.z = this->object->mMeshes[0]->mVertices[0].z;
+	this->bounding.higher.x = this->object->mMeshes[0]->mVertices[0].x;
+	this->bounding.higher.y = this->object->mMeshes[0]->mVertices[0].y;
+	this->bounding.higher.z = this->object->mMeshes[0]->mVertices[0].z;
+
+	// Find the highter and less coordinates
+	for (unsigned int m = 0; m < this->object->mNumMeshes; m++) {
+		for (unsigned int v = 0; v < this->object->mMeshes[m]->mNumVertices; v++) {
+			this->bounding.less.x = this->object->mMeshes[m]->mVertices[v].x < this->bounding.less.x ? this->object->mMeshes[m]->mVertices[v].x : this->bounding.less.x;
+			this->bounding.less.y = this->object->mMeshes[m]->mVertices[v].y < this->bounding.less.y ? this->object->mMeshes[m]->mVertices[v].y : this->bounding.less.y;
+			this->bounding.less.z = this->object->mMeshes[m]->mVertices[v].z < this->bounding.less.z ? this->object->mMeshes[m]->mVertices[v].z : this->bounding.less.z;
+
+			this->bounding.higher.x = this->object->mMeshes[m]->mVertices[v].x > this->bounding.higher.x ? this->object->mMeshes[m]->mVertices[v].x : this->bounding.higher.x;
+			this->bounding.higher.y = this->object->mMeshes[m]->mVertices[v].y > this->bounding.higher.y ? this->object->mMeshes[m]->mVertices[v].y : this->bounding.higher.y;
+			this->bounding.higher.z = this->object->mMeshes[m]->mVertices[v].z > this->bounding.higher.z ? this->object->mMeshes[m]->mVertices[v].z : this->bounding.higher.z;
+		}
+	}
+
+	// Calculates a cube with all sides with equal sizes (average of 3 dimensions).
+	if (mode == BoundingBoxRange::CUBE) {
+		double incr_x, incr_y, incr_z;
+		double average;
+
+		average = ((this->bounding.higher.x - this->bounding.less.x) + (this->bounding.higher.y - this->bounding.less.y) + (this->bounding.higher.z - this->bounding.less.z)) / 3.0f;
+
+		incr_x = (this->bounding.higher.x - this->bounding.less.x - average);
+		incr_y = (this->bounding.higher.y - this->bounding.less.y - average);
+		incr_z = (this->bounding.higher.z - this->bounding.less.z - average);
+
+		this->bounding.less.x += incr_x;
+		this->bounding.less.y += incr_y;
+		this->bounding.less.z += incr_z;
+
+		this->bounding.higher.x -= incr_x;
+		this->bounding.higher.y -= incr_y;
+		this->bounding.higher.z -= incr_z;
+	}
+
+	this->hasBoundBox = true;
 }
 
-void Model3D::renderBoundingBox() {
-	glBegin(GL_LINE); {
-		glVertex3d(bounding.higher.x, bounding.higher.y, bounding.higher.z);
-		glVertex3d(bounding.higher.x, bounding.higher.y, bounding.less.z);
+//***********************************************************************************************************************
 
-		glVertex3d(bounding.higher.x, bounding.higher.y, bounding.higher.z);
-		glVertex3d(bounding.higher.x, bounding.less.y, bounding.higher.z);
+BoundingBox Model3D::getBoundingBox() {
+	BoundingBox aux = this->bounding;
 
-		glVertex3d(bounding.higher.x, bounding.higher.y, bounding.higher.z);
-		glVertex3d(bounding.less.x, bounding.higher.y, bounding.higher.z);
+	aux.less.x *= this->ar_scale[0];
+	aux.less.y *= this->ar_scale[1];
+	aux.less.z *= this->ar_scale[2];
 
-		glVertex3d(bounding.higher.x, bounding.higher.y, bounding.less.z);
-		glVertex3d(bounding.higher.x, bounding.less.y, bounding.less.z);
+	aux.higher.x *= this->ar_scale[0];
+	aux.higher.y *= this->ar_scale[1];
+	aux.higher.z *= this->ar_scale[2];
 
-		glVertex3d(bounding.higher.x, bounding.higher.y, bounding.less.z);
-		glVertex3d(bounding.less.x, bounding.higher.y, bounding.less.z);
+	return aux;
+}
 
-		glVertex3d(bounding.less.x, bounding.higher.y, bounding.less.z);
-		glVertex3d(bounding.less.x, bounding.less.y, bounding.less.z);
+//***********************************************************************************************************************
 
-		glVertex3d(bounding.less.x, bounding.higher.y, bounding.less.z);
-		glVertex3d(bounding.less.x, bounding.higher.y, bounding.higher.z);
-
-		glVertex3d(bounding.less.x, bounding.higher.y, bounding.higher.z);
-		glVertex3d(bounding.less.x, bounding.less.y, bounding.higher.z);
-
-		glVertex3d(bounding.less.x, bounding.less.y, bounding.higher.z);
-		glVertex3d(bounding.less.x, bounding.less.y, bounding.less.z);
-
-		glVertex3d(bounding.less.x, bounding.less.y, bounding.higher.z);
-		glVertex3d(bounding.higher.x, bounding.less.y, bounding.higher.z);
-
-		glVertex3d(bounding.higher.x, bounding.less.y, bounding.higher.z);
-		glVertex3d(bounding.higher.x, bounding.less.y, bounding.less.z);
-
-		glVertex3d(bounding.higher.x, bounding.less.y, bounding.less.z);
-		glVertex3d(bounding.less.x, bounding.less.y, bounding.less.z);
-	} glEnd();
+bool Model3D::hasBoundingBox() {
+	return this->hasBoundBox;
 }
 
 //************************************************ PRIVATE FUNCTIONS ************************************************
 
-void Model3D::Color4f(const aiColor4D *color)
-{
-	glColor4f(color->r, color->g, color->b, color->a);
-}
-
-void Model3D::set_float4(float f[4], float a, float b, float c, float d)
-{
-	f[0] = a;
-	f[1] = b;
-	f[2] = c;
-	f[3] = d;
-}
-
-void Model3D::color4_to_float4(const aiColor4D *c, float f[4])
-{
-	f[0] = c->r;
-	f[1] = c->g;
-	f[2] = c->b;
-	f[3] = c->a;
-}
-
 void Model3D::apply_material(const aiMaterial *mtl)
 {
-	float c[4];
+	float color[4];
 
-	GLenum fill_mode;
-	int ret1, ret2;
-	aiColor4D diffuse;
-	aiColor4D specular;
-	aiColor4D ambient;
-	aiColor4D emission;
-	float shininess, strength;
-	int two_sided;
-	int wireframe;
-	unsigned int max;	// changed: to unsigned
+	for (unsigned int t = 0; t < this->textures.size(); t++) {
 
-	int texIndex = 0;
-	aiString texPath;	//contains filename of texture
+		{ // Bind texture
+			aiString texture_path;
 
-	if (AI_SUCCESS == mtl->GetTexture(aiTextureType_DIFFUSE, texIndex, &texPath))
-	{
-		//bind texture
-		unsigned int texId = *textureIdMap[texPath.data];
-		glBindTexture(GL_TEXTURE_2D, texId);
-	}
+			if (AI_SUCCESS == mtl->GetTexture(aiTextureType_DIFFUSE, 0, &texture_path))
+				glBindTexture(GL_TEXTURE_2D, *this->textures[texture_path.data]);
+		}
 
-	this->set_float4(c, 1.0f, 1.0f, 1.0f, 1.0f);
-//	this->set_float4(c, 0.8f, 0.8f, 0.8f, 1.0f);
-	if (AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_DIFFUSE, &diffuse))
-		this->color4_to_float4(&diffuse, c);
+		{ // Apply the diffuse illumination attributes of the material
+			aiColor4D diffuse;
 
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, c);
+			PUSH_TO_ARRAY4(color, 1.0f, 1.0f, 1.0f, 1.0f);
 
-	this->set_float4(c, 1.0f, 1.0f, 1.0f, 1.0f);
-//	this->set_float4(c, 0.0f, 0.0f, 0.0f, 1.0f);
-	if (AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_SPECULAR, &specular))
-		this->color4_to_float4(&specular, c);
+			if (AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_DIFFUSE, &diffuse))
+				PUSH_TO_ARRAY4(color, diffuse.r, diffuse.g, diffuse.b, diffuse.a);
 
-	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, c);
+			glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, color);
+		}
 
-	this->set_float4(c, 1.0f, 1.0f, 1.0f, 1.0f);
-//	this->set_float4(c, 0.2f, 0.2f, 0.2f, 1.0f);
-	if (AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_AMBIENT, &ambient))
-		this->color4_to_float4(&ambient, c);
+		{ // Apply the specular illumination attributes of the material
+			aiColor4D specular;
 
-	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, c);
+			PUSH_TO_ARRAY4(color, 0.0f, 0.0f, 0.0f, 1.0f);
 
-	this->set_float4(c, 1.0f, 1.0f, 1.0f, 1.0f);
-//	this->set_float4(c, 0.0f, 0.0f, 0.0f, 1.0f);
-	if (AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_EMISSIVE, &emission))
-		this->color4_to_float4(&emission, c);
+			if (AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_SPECULAR, &specular))
+				PUSH_TO_ARRAY4(color, specular.r, specular.g, specular.b, specular.a);
 
-	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, c);
+			glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, color);
+		}
+		
+		{ // Apply the ambient illumination attributes of the material
+			aiColor4D ambient;
 
-	max = 1;
-	ret1 = aiGetMaterialFloatArray(mtl, AI_MATKEY_SHININESS, &shininess, &max);
-	max = 1;
-	ret2 = aiGetMaterialFloatArray(mtl, AI_MATKEY_SHININESS_STRENGTH, &strength, &max);
+			PUSH_TO_ARRAY4(color, 1.0f, 1.0f, 1.0f, 1.0f);
 
-	if ((ret1 == AI_SUCCESS))// && (ret2 == AI_SUCCESS))
-		glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 128.0f);//shininess * strength);
-	else {
-		glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 128.0f);
-//		this->set_float4(c, 1.0f, 1.0f, 1.0f, 1.0f);
-		this->set_float4(c, 0.0f, 0.0f, 0.0f, 0.0f);
-		glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, c);
-	}
+			if (AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_AMBIENT, &ambient))
+				PUSH_TO_ARRAY4(color, ambient.r, ambient.g, ambient.b, ambient.a);
 
-	max = 1;
-	if (AI_SUCCESS == aiGetMaterialIntegerArray(mtl, AI_MATKEY_ENABLE_WIREFRAME, &wireframe, &max))
-		fill_mode = wireframe ? GL_LINE : GL_FILL;
-	else
-		fill_mode = GL_FILL;
-	glPolygonMode(GL_FRONT_AND_BACK, fill_mode);
+			glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, color);
+		}
 
-	max = 1;
-	if ((AI_SUCCESS == aiGetMaterialIntegerArray(mtl, AI_MATKEY_TWOSIDED, &two_sided, &max)) && two_sided)
-		glEnable(GL_CULL_FACE);
-	else
-		glDisable(GL_CULL_FACE);
-}
+		{ // Apply the lighting emission attributes of the material
+			aiColor4D emission;
 
-void Model3D::recursive_render(const struct aiScene *sc, const struct aiNode* nd) {
-	unsigned int i, n, t;
-	aiMatrix4x4 matrix1 = nd->mTransformation;
+			PUSH_TO_ARRAY4(color, 0.0f, 0.0f, 0.0f, 1.0f);
 
-	aiMatrix4x4 matrix2;
+			if (AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_EMISSIVE, &emission))
+				PUSH_TO_ARRAY4(color, emission.r, emission.g, emission.b, emission.a);
 
-	aiMatrix4x4::Scaling(aiVector3D(this->ar_scale[0], this->ar_scale[1], this->ar_scale[2]), matrix2);
+			glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, color);
+		}
 
-	matrix1 = matrix1 * matrix2;
+		unsigned int max = 1;
+		
+		{ // Apply the shininess of the material
+			float shininess;//, strength;
 
-	// update transform
-	matrix1.Transpose();
-	glPushMatrix();
-
-	glMultMatrixf((float*) &matrix1);
-
-	// draw all meshes assigned to this node
-	for (n = 0; n < nd->mNumMeshes; n++) {
-		const struct aiMesh* mesh = this->scene->mMeshes[nd->mMeshes[n]];
-
-		apply_material(sc->mMaterials[mesh->mMaterialIndex]);
-		/*
-		if (mesh->mNormals == NULL)
-			glDisable(GL_LIGHTING);
-		else
-			glEnable(GL_LIGHTING);
-
-		if (mesh->mColors[0] != NULL)
-			glEnable(GL_COLOR_MATERIAL);
-		else
-			glDisable(GL_COLOR_MATERIAL);
-		*/
-		for (t = 0; t < mesh->mNumFaces; t++) {
-			const struct aiFace* face = &mesh->mFaces[t];
-			GLenum face_mode;
-
-			switch (face->mNumIndices) {
-				case 1:
-					face_mode = GL_POINTS;
-					break;
-				case 2:
-					face_mode = GL_LINES;
-					break;
-				case 3:
-					face_mode = GL_TRIANGLES;
-					break;
-				default:
-					face_mode = GL_POLYGON;
-					break;
+			if ((aiGetMaterialFloatArray(mtl, AI_MATKEY_SHININESS, &shininess, &max) == AI_SUCCESS)) // && (aiGetMaterialFloatArray(mtl, AI_MATKEY_SHININESS_STRENGTH, &strength, &max) == AI_SUCCESS))
+				glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, shininess); // * strength);
+			else {
+				glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 0.0f);
+				PUSH_TO_ARRAY4(color, 0.0f, 0.0f, 0.0f, 1.0f);
+				glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, color);
 			}
+		}
 
-			bounding.higher = { mesh->mVertices[0].x, mesh->mVertices[0].y, mesh->mVertices[0].z};
-			bounding.less = { mesh->mVertices[0].x, mesh->mVertices[0].y, mesh->mVertices[0].z };
+		{ // Sets the fill of the faces
+			int wireframe = 0;
 
-			glBegin(face_mode);
-				for (i = 0; i < face->mNumIndices; i++) {						// go through all vertices in face
-					int vertexIndex = face->mIndices[i];						// get group index for current index
+			aiGetMaterialIntegerArray(mtl, AI_MATKEY_ENABLE_WIREFRAME, &wireframe, &max);
+			glPolygonMode(GL_FRONT_AND_BACK, wireframe ? GL_LINE : GL_FILL);
+		}
 
-					bounding.higher.x = mesh->mVertices[vertexIndex].x > bounding.higher.x ? mesh->mVertices[vertexIndex].x : bounding.higher.x;
-					bounding.higher.y = mesh->mVertices[vertexIndex].y > bounding.higher.y ? mesh->mVertices[vertexIndex].y : bounding.higher.y;
-					bounding.higher.z = mesh->mVertices[vertexIndex].z > bounding.higher.z ? mesh->mVertices[vertexIndex].z : bounding.higher.z;
+		{ // Enable the Backface Culling
+			int two_sided;
 
-					bounding.less.x = mesh->mVertices[vertexIndex].x < bounding.less.x ? mesh->mVertices[vertexIndex].x : bounding.less.x;
-					bounding.less.y = mesh->mVertices[vertexIndex].y < bounding.less.y ? mesh->mVertices[vertexIndex].y : bounding.less.y;
-					bounding.less.z = mesh->mVertices[vertexIndex].z < bounding.less.z ? mesh->mVertices[vertexIndex].z : bounding.less.z;
-
-					if (mesh->mColors[0] != NULL)
-						this->Color4f(&mesh->mColors[0][vertexIndex]);
-
-					if (mesh->mNormals != NULL) {
-
-						if (mesh->HasTextureCoords(0))		//HasTextureCoords(texture_coordinates_set)
-						{
-							glTexCoord2f(mesh->mTextureCoords[0][vertexIndex].x, 1 - mesh->mTextureCoords[0][vertexIndex].y); //mTextureCoords[channel][vertex]
-						}
-
-						glNormal3fv(&mesh->mNormals[vertexIndex].x);
-						glVertex3fv(&mesh->mVertices[vertexIndex].x);
-					}
-					
-				}
-			glEnd();
+			if ((AI_SUCCESS == aiGetMaterialIntegerArray(mtl, AI_MATKEY_TWOSIDED, &two_sided, &max)) && two_sided)
+				glEnable(GL_CULL_FACE);
+			else glDisable(GL_CULL_FACE);
 		}
 	}
+}
 
-	// draw all children
-	for (n = 0; n < nd->mNumChildren; n++)
-		this->recursive_render(sc, nd->mChildren[n]);
+//***********************************************************************************************************************
 
-	glPopMatrix();
+void Model3D::recursive_render(const struct aiScene *sc, const struct aiNode* nd) {
+	glPushMatrix(); {
+		// Apply scale
+		glScalef(this->ar_scale[0], this->ar_scale[1], this->ar_scale[2]);
+
+		// Draw all meshes assigned to this node
+		for (unsigned int n = 0; n < nd->mNumMeshes; n++) {
+			unsigned int m = nd->mMeshes[n];
+
+			// Apply the material of this mesh
+			apply_material(sc->mMaterials[this->object->mMeshes[m]->mMaterialIndex]);
+
+			// Draw all faces assigned to this mesh
+			for (unsigned int f = 0; f < this->object->mMeshes[m]->mNumFaces; f++) {
+				GLenum face_mode;
+
+				// Identifies the type of face
+				switch (this->object->mMeshes[m]->mFaces[f].mNumIndices) {
+					case 1:
+						face_mode = GL_POINTS;
+						break;
+					case 2:
+						face_mode = GL_LINES;
+						break;
+					case 3:
+						face_mode = GL_TRIANGLES;
+						break;
+					default:
+						face_mode = GL_POLYGON;
+						break;
+				}
+
+				glBegin(face_mode); {
+					for (unsigned int i = 0; i < this->object->mMeshes[m]->mFaces[f].mNumIndices; i++) {						// go through all vertices in face
+						int v = this->object->mMeshes[m]->mFaces[f].mIndices[i];						// get group index for current index
+
+						// Sets the vertex color
+						if (this->object->mMeshes[m]->mColors[0] != NULL) {
+							glColor4f(
+								this->object->mMeshes[m]->mColors[0][v].r,
+								this->object->mMeshes[m]->mColors[0][v].g,
+								this->object->mMeshes[m]->mColors[0][v].b,
+								this->object->mMeshes[m]->mColors[0][v].a
+							);
+						}
+
+						// Maps the texture
+						if (this->object->mMeshes[m]->mNormals != NULL) {
+
+							// Sets the texture coordinates
+							if (this->object->mMeshes[m]->HasTextureCoords(0))
+								glTexCoord2f(this->object->mMeshes[m]->mTextureCoords[0][v].x, 1 - this->object->mMeshes[m]->mTextureCoords[0][v].y);
+
+							// Sets the normal vector
+							glNormal3fv(&this->object->mMeshes[m]->mNormals[v].x);
+						}
+
+						// Sets the vertex
+						glVertex3fv(&this->object->mMeshes[m]->mVertices[v].x);
+					}
+				} glEnd();
+			}
+		}
+
+		// Draw all childrens
+		for (unsigned int n = 0; n < nd->mNumChildren; n++)
+			this->recursive_render(sc, nd->mChildren[n]);
+
+	} glPopMatrix();
 }
 

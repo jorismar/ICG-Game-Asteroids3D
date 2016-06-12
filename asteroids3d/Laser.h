@@ -5,6 +5,7 @@
 
 class Laser : public Object {
 private:
+	bool	alive;
 	double	speed;			// Moviment speed
 
 public:
@@ -54,10 +55,13 @@ public:
 
 	/**
 	* \brief Events handler.
-	*
+ 
 	* \param	id		Event id.
 	*/
 	virtual void event(int id);
+
+	void kill();
+	bool isAlive();
 };
 
 #endif // !JB_LASER_H

@@ -2,10 +2,10 @@
 
 Audio::Audio() {
 	this->channel				= 0;
-	this->num_channels			= 2;
-	this->sample_format			= AUDIO_S16SYS;
-	this->sample_bitrate		= 44100;
-	this->sample_buffer_size	= 4096;
+	this->num_channels			= 1;
+	this->sample_format			= MIX_DEFAULT_FORMAT;
+	this->sample_bitrate		= MIX_DEFAULT_FREQUENCY;
+	this->sample_buffer_size	= 2048;
 	this->chunk					= NULL;
 }
 

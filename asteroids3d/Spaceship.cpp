@@ -39,6 +39,7 @@ void Spaceship::render() {
 		glRotated(this->angle.z + this->animation_angle_z, 0.0f, 0.0f, 1.0f);
 
 		// Render model
+		this->models[0].renderBoundingBox();
 		this->models[0].render();
 	} glPopMatrix();
 }

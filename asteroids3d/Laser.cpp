@@ -2,6 +2,7 @@
 
 Laser::Laser() {
 	this->speed	= 0.0f;
+	this->alive = true;
 }
 
 //***********************************************************************************************************************
@@ -39,6 +40,7 @@ void Laser::dynamicRender(Position pos, Angle angle) {
 
 		pos.z -= this->speed;
 
+		//this->models[0].renderBoundingBox();
 		this->models[0].render();
 	} glPopMatrix();
 }
@@ -67,4 +69,12 @@ void Laser::event(int id) {
 	// rotação da cena
 	// posição da nave
 	// lado do canhão disparado
+}
+
+void Laser::kill() {
+	this->alive = false;
+}
+
+bool Laser::isAlive() {
+	return this->alive;
 }
