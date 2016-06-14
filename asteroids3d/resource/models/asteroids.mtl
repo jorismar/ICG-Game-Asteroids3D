@@ -10,5 +10,5 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.000000
 d 1.000000
 illum 1
-map_Bump  phobos_normal_map.png
-map_Kd  phobos2k.jpg
+map_Bump  textures\asteroid_normal_map.png
+map_Kd  textures\asteroid.jpg

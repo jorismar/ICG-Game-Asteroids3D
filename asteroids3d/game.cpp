@@ -46,6 +46,8 @@ Entity timer_board;
 Entity hp_board;
 Entity special_board;
 Entity crosshair;
+Entity gameover;
+Entity missioncomplete;
 Camera camera;
 
 // -----------------------------------------------------------------------------------------------------------------------
@@ -54,13 +56,15 @@ Camera camera;
 
 // Path models
 std::string models_folder	=	"resource/models/";
-std::string obj_spaceship	=	models_folder + "spaceship3.obj";	// Spaceship model file
+std::string obj_spaceship	=	models_folder + "spaceship6.obj";	// Spaceship model file
 std::string obj_asteroid	=	models_folder + "asteroids.obj";	// Asteroid model file
 std::string obj_background	=	models_folder + "bg.obj";			// Background model file
 std::string obj_laser		=	models_folder + "laser.obj";		// Laser model file
 std::string obj_heart		=	models_folder + "heart.obj";		// Heart model file
 std::string obj_star		=	models_folder + "star.obj";			// Star model file
 std::string obj_crosshair	=	models_folder + "crosshair.obj";	// Crosshair model file
+std::string obj_gameover	=	models_folder + "gameover.obj";		// Spaceship model file
+std::string obj_missionc	=	models_folder + "mission_complete.obj";	// Spaceship model file
 std::string obj_numbers[]	= {										// Objects to form score and timer boards
 								models_folder + "0.obj",			
 								models_folder + "1.obj",
@@ -431,11 +435,6 @@ void asteroidManager() {
 						// Respawn
 						spaceshipRespawn();
 					}
-					
-					// Game over
-					else {
-						// GAME OVER EVENT NOT IMPLEMENTED YET
-					}
 
 					// Explosion animation
 
@@ -747,6 +746,8 @@ bool loadGame() {
 	initEntity(	&spaceship,			1 );	// Init spaceship entity
 	initEntity(	&special_board, MAX_SP);	// Init special_board entity
 	initEntity(	&timer_board,		8 );	// Init timer_board entity
+	initEntity(	&gameover,			1 );	// Init asteroids entities
+	initEntity(	&missioncomplete,	1 );	// Init asteroids entities
 
 	// Instantiating 3D objects
 	asteroids.object	 = new Object3D();	// Asteroid
@@ -758,6 +759,8 @@ bool loadGame() {
 	spaceship.object	 = new Object3D();	// Spaceship
 	special_board.object = new Object3D();	// Specialboard
 	timer_board.object	 = NULL;			// Timerboard
+	gameover.object		 = new Object3D();
+	missioncomplete.object = new Object3D();
 
 	// --------------------------------------------------------------
 	// LOAD MODELS AND AUDIOS
@@ -772,6 +775,8 @@ bool loadGame() {
 	if (!background.object	->	load	(	&obj_background, 1,		&sfx_background,		 1	))	PRINT_ERR("Load bg model",		  false);	// Loads the background model
 	if (!special_board.object->	load	(	&obj_star,		 1,		NULL,					 0	))	PRINT_ERR("Load star model",	  false);	// Loads the star model
 	if (!score_board.object	->	load	(	obj_numbers,	11,		NULL,					 0	))	PRINT_ERR("Load numbers model",	  false);	// Loads the number model
+	if (!gameover.object	->	load	(	&obj_gameover,	 1, NULL, 0))	PRINT_ERR("Load gameover model", false);	// Loads the number model
+	if (!missioncomplete.object->load(&obj_missionc, 1, NULL, 0))	PRINT_ERR("Load mission complete model", false);	// Loads the number model
 
 	timer_board.object = score_board.object;		// Sets the pointer to same numbers models
 
@@ -787,7 +792,7 @@ bool loadGame() {
 	spaceship.status->speed			= SPACESHIP_SPEED;				// Set speed
 	spaceship.status->inclination.x = 12.0f;						// Set visual inclination
 	spaceship.status->position.z	= SCENE_LIMITE_BACK - 40.0f;	// Set Z position
-	spaceship.object->model(0)->scale(0.65f);						// Set the model scale factor
+	spaceship.object->model(0)->scale(0.75f);						// Set the model scale factor
 	spaceship.object->model(0)->genBoundingBox(BoundingBoxRange::FULL);		// Generates the Bounding box
 
 	// Configuring laser
@@ -821,6 +826,18 @@ bool loadGame() {
 	// --------------------------------------------------------------
 	// POSITIONING GUI
 	// --------------------------------------------------------------
+
+	// Positioning the game over letters
+	gameover.status->alive = false;
+	gameover.status->position.z = gui_z_pos;
+	gameover.status->position.y = 9.6f;
+	gameover.object->model(0)->scale(1.3f);
+	
+	// Positioning the game over letters
+	missioncomplete.status->alive = false;
+	missioncomplete.status->position.z = gui_z_pos;
+	missioncomplete.status->position.y = 9.6f;
+	missioncomplete.object->model(0)->scale(1.3f);
 
 	// Positioning the crosshair
 	crosshair.status->position.y = 9.6f;
@@ -896,13 +913,18 @@ bool loadGame() {
 	std::thread timeCounter(
 		[=]() {
 			for (timevalue[5] = 0; timevalue[5] < 6; timevalue[5]++)	// Minutes
-				for (timevalue[4] = 0; timevalue[4] < 10; timevalue[4]++)	// Minutes
-					for (timevalue[3] = 0; timevalue[3] < 6; timevalue[3]++)	// Secounds
+				for (timevalue[4] = 0; timevalue[4] < 10; timevalue[4]++) {	// Minutes
+					if (timevalue[4] == 1 && spaceship.status->alive)
+						missonComplete();
+					for (timevalue[3] = 0; timevalue[3] < 6; timevalue[3]++) {	// Secounds
+						current_difficulty = current_difficulty < DIFFICULTY_LEVEL_VERY_HARD ? current_difficulty + 1 : current_difficulty;
 						for (timevalue[2] = 0; timevalue[2] < 10; timevalue[2]++)	// Secounds
 							for (timevalue[1] = 0; timevalue[1] < 10; timevalue[1]++)	// Milissecounds
 								do {	// While the spaceship will not revive, time stands still
 									sleep(100);
 								} while (!spaceship.status->alive);
+					}
+				}
 		}
 	);
 
@@ -935,9 +957,17 @@ bool loadGame() {
 void runGame() {
 	cameraManager();
 
+	// Draw GUI Session
 	glPushMatrix(); {
 		glTranslatef(spaceship.status->position.x, spaceship.status->position.y, 0.0f);
-		draw(crosshair, 0, 0);	// Draw Crosshair
+
+		if(missioncomplete.status->alive)
+			draw(missioncomplete, 0, 0);
+		else if(gameover.status->alive)
+			draw(gameover, 0, 0);
+		else
+			draw(crosshair, 0, 0);	// Draw Crosshair
+
 		timerManager();			// Draw Timer
 		scoreManager();			// Draw Score
 		healthManager();		// Draw HP
@@ -956,7 +986,15 @@ void runGame() {
 // -----------------------------------------------------------------------------------------------------------------------
 
 void gameOver() {
-	// NOT IMPLEMENTED YET
+	gameover.status->alive = true;
+}
+
+void missonComplete() {
+	missioncomplete.status->alive = true;
+	spaceship.status->alive = false;
+	respawnDraw = true;
+	spaceshipReleaseMoveUp();
+	spaceshipReleaseMoveRight();
 }
 
 void spaceshipRespawn() {

@@ -263,6 +263,8 @@ void gameOver();
 */
 void spaceshipRespawn();
 
+void missonComplete();
+
 // ***********************************************************************************************************************
 
 #endif // !JB_ASTEROIDS3D_GAME_H

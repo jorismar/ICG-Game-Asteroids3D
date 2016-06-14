@@ -149,10 +149,6 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="asteroids3d.rc" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="bkp.cpp" />
     <ClCompile Include="game.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Audio.cpp" />
